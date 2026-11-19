@@ -19,13 +19,21 @@ Editor features in this prototype:
 
 ## Photographic hoodie back rendering
 
-The studio now has a client-side garment-master renderer for the supplied hoodie back photographs. It preserves the source alpha channel and fabric luminance while applying a selected colour, and caches recent colour variants in memory. The exact black and white options use their corresponding photographic masters.
+The studio now has a client-side garment-master renderer for approved hoodie and crewneck T-shirt front/back photographs. It preserves the source alpha channel and fabric luminance while applying a selected colour, and caches recent colour variants in memory. The exact black and white options use their corresponding photographic masters.
 
-Place the two prepared transparent PNGs at:
-- `public/garments/hoodie-white-back.png`
-- `public/garments/hoodie-black-back.png`
+Hoodie master files expected in `public/garments/`:
+- `hoodie-white-front.png`
+- `hoodie-black-front.png`
+- `hoodie-white-back.png`
+- `hoodie-black-back.png`
 
-The supplied files are rear views only. The hoodie front and all other garment views remain illustrative until their matching approved master images are added. Colour previews are not calibrated production proofs or a stock feed.
+Crewneck T-shirt master files expected in `public/garments/`:
+- `tshirt-white-front.png`
+- `tshirt-black-front.png`
+- `tshirt-white-back.png`
+- `tshirt-black-back.png`
+
+T-shirt files are expected but must be uploaded before the crewneck photo renderer can display them. Other garment styles remain illustrative until their matching approved master images are added. Colour previews are not calibrated production proofs or a stock feed.
 
 ## Important prototype limitations
 
