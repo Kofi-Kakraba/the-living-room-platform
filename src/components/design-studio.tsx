@@ -80,7 +80,7 @@ export default function DesignStudio() {
       const active = canvases.current[sideRef.current]?.getActiveObject();
       if (active) {
         setOpacity(Math.round((active.opacity ?? 1)*100));
-        setActiveScale(Math.round((active.scaleX ?? 1)*100));
+         setActiveScale(Math.round(((active as any).__designScalePercent ?? 100)));
         setActiveRotation(Math.round(active.angle ?? 0));
       } else {
         setOpacity(100); setActiveScale(100); setActiveRotation(0);
@@ -129,7 +129,8 @@ export default function DesignStudio() {
   const addText = () => {
     const canvas=currentCanvas(); if(!canvas) return;
     const [w,h]=ratios[ratio];
-    const object=new IText(textValue.trim() || "YOUR TEXT",{left:w/2,top:h/2,originX:"center",originY:"center",fontFamily:"Arial",fontSize:24,fontWeight:"bold",fill:"#24221f",textAlign:"center",cornerColor:"#a66c4b",borderColor:"#a66c4b",transparentCorners:false});
+    const object=new IText(textValue.trim() || "YOUR TEXT",{left:w/2,top:h*.44,originX:"center",originY:"center",fontFamily:"Arial",fontSize:24,fontWeight:"bold",fill:"#24221f",textAlign:"center",cornerColor:"#a66c4b",borderColor:"#a66c4b",transparentCorners:false});
+    (object as any).__baseScaleX=1; (object as any).__baseScaleY=1; (object as any).__designScalePercent=100;
     canvas.add(object); canvas.setActiveObject(object); canvas.renderAll(); setStatus("Text added. Drag, resize or rotate it on the canvas.");
   };
   const uploadArtwork = (file?: File) => {
@@ -140,7 +141,8 @@ export default function DesignStudio() {
     reader.onload=async()=>{if(typeof reader.result!=="string")return;try{
       const image=await FabricImage.fromURL(reader.result); const max=Math.min(130,ratios[ratio][0]*.44);
       const scale=Math.min(max/(image.width||max),max/(image.height||max),1);
-      image.set({left:ratios[ratio][0]/2,top:ratios[ratio][1]/2,originX:"center",originY:"center",scaleX:scale,scaleY:scale,cornerColor:"#a66c4b",borderColor:"#a66c4b",transparentCorners:false});
+      image.set({left:ratios[ratio][0]/2,top:ratios[ratio][1]*.44,originX:"center",originY:"center",scaleX:scale,scaleY:scale,cornerColor:"#a66c4b",borderColor:"#a66c4b",transparentCorners:false});
+      (image as any).__baseScaleX=scale; (image as any).__baseScaleY=scale; (image as any).__designScalePercent=100;
       canvas.add(image);canvas.setActiveObject(image);canvas.renderAll();setStatus("Artwork uploaded. Position it inside the print guide.");
     }catch{setStatus("That image could not be opened. Try another file.");}};
     reader.readAsDataURL(file);
@@ -149,7 +151,7 @@ export default function DesignStudio() {
   const updateSelected=(key:"opacity"|"scale"|"angle",value:number)=>{
     const c=currentCanvas(),a=c?.getActiveObject();if(!c||!a)return;
     if(key==="opacity")a.set("opacity",value/100);
-    if(key==="scale"){const base=(a as unknown as { __baseScale?: number }).__baseScale || a.scaleX || 1;(a as any).__baseScale=base;a.scale(base*value/100);}
+    if(key==="scale"){const baseX=(a as any).__baseScaleX ?? a.scaleX ?? 1;const baseY=(a as any).__baseScaleY ?? a.scaleY ?? 1;(a as any).__designScalePercent=value;a.set({scaleX:baseX*value/100,scaleY:baseY*value/100});}
     if(key==="angle")a.rotate(value);
     c.renderAll();
   };
