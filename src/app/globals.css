@@ -184,3 +184,12 @@ img{display:block;max-width:100%}
 .design-stage-v2 .canvas-wrap .canvas-container canvas{touch-action:none!important}
 .design-stage-v2 .canvas-wrap .canvas-container .upper-canvas{cursor:default!important;pointer-events:auto!important}
 .design-stage-v2 .canvas-wrap .canvas-container .upper-canvas:active{cursor:grabbing!important}
+
+
+/* Separate front/back Fabric surfaces: hide the entire inactive Fabric wrapper,
+   including its generated interaction canvas, rather than hiding only its source canvas. */
+.design-stage-v2 .garment-artwork-overlay .canvas-wrap{position:absolute!important;inset:0!important;width:100%!important;height:100%!important}
+.design-stage-v2 .garment-artwork-overlay .canvas-wrap[style*="display: none"]{display:none!important}
+.design-stage-v2 .garment-artwork-overlay .canvas-wrap .canvas-container{pointer-events:auto!important}
+.design-stage-v2 .garment-artwork-overlay .canvas-wrap .upper-canvas{pointer-events:auto!important;touch-action:none!important;cursor:move!important}
+.design-stage-v2 .garment-artwork-overlay .canvas-wrap .upper-canvas:active{cursor:grabbing!important}
