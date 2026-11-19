@@ -193,3 +193,12 @@ img{display:block;max-width:100%}
 .design-stage-v2 .garment-artwork-overlay .canvas-wrap .canvas-container{pointer-events:auto!important}
 .design-stage-v2 .garment-artwork-overlay .canvas-wrap .upper-canvas{pointer-events:auto!important;touch-action:none!important;cursor:move!important}
 .design-stage-v2 .garment-artwork-overlay .canvas-wrap .upper-canvas:active{cursor:grabbing!important}
+
+
+/* Reusable artwork library in the Design panel */
+.artwork-library{display:grid;gap:8px;margin-top:12px}
+.artwork-library-item{display:grid;grid-template-columns:44px minmax(0,1fr);grid-template-rows:auto auto;align-items:center;column-gap:10px;text-align:left;padding:8px;border:1px solid #dedbd5;background:#fff;border-radius:4px;color:#24221f;cursor:pointer}
+.artwork-library-item:hover{border-color:#ef693f;background:#fffaf7}
+.artwork-library-item img{grid-row:1 / span 2;width:44px;height:44px;object-fit:contain;background:#f5f3ed;border-radius:3px}
+.artwork-library-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+.artwork-library-item small{font-size:10px;color:#777}
