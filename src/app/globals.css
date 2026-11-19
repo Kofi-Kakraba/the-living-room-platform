@@ -166,3 +166,9 @@ img{display:block;max-width:100%}
 .transparent-stage{background-color:#f7f7f7!important;background-image:linear-gradient(45deg,#e8e8e8 25%,transparent 25%),linear-gradient(-45deg,#e8e8e8 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e8e8e8 75%),linear-gradient(-45deg,transparent 75%,#e8e8e8 75%)!important;background-size:18px 18px!important;background-position:0 0,0 9px,9px -9px,-9px 0!important}
 .wood-stage{background-color:#c8a77e!important;background-image:repeating-linear-gradient(0deg,#a77c50 0,#a77c50 2px,#c9a77e 2px,#c9a77e 48px),repeating-linear-gradient(90deg,transparent 0,transparent 120px,#a77c50 121px,#a77c50 123px)!important}
 @media(max-width:760px){.studio-v2-body{grid-template-columns:1fr}.studio-v2-controls{max-height:none;border-right:0;border-bottom:1px solid #ececec;display:block}.editor-tabs{padding:0 8px;justify-content:space-around}.editor-tabs button{padding:13px 9px;font-size:9px}.design-stage-v2{min-height:520px}.design-stage-v2 .garment-preview{min-height:420px}.studio-v2-controls .control-group{margin-top:18px}}
+
+
+/* Photographic garment master preview and pixel-preserving fabric recolouring */
+.garment-master-frame{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}
+.garment-master-render{width:min(94%,650px);height:100%;max-height:510px;object-fit:contain;filter:drop-shadow(0 17px 18px #1b1d221a)}
+.garment-master-message{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:80%;padding:9px 12px;background:#ffffffdc;color:#6f737a;font-size:10px;text-align:center;border:1px solid #e6e6e6}
