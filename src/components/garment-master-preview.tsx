@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 type GarmentMaster = "hoodie" | "crewneck";
 type GarmentSide = "front" | "back";
@@ -42,9 +42,10 @@ function hexToRgb(hex: string): [number, number, number] | null {
  * alpha cut-out, folds and seams. Exact black/white masters are preferred
  * for those colours; this renderer is a visual preview, not a colour proof.
  */
-export default function GarmentMasterPreview({ colour, garment = "hoodie", side = "back" }: { colour: string; garment?: GarmentMaster; side?: GarmentSide }) {
+export default function GarmentMasterPreview({ colour, garment = "hoodie", side = "back", fallback }: { colour: string; garment?: GarmentMaster; side?: GarmentSide; fallback?: ReactNode }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [message, setMessage] = useState("Loading garment master…");
+  const [assetFailed, setAssetFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,6 +56,8 @@ export default function GarmentMasterPreview({ colour, garment = "hoodie", side 
     const isWhite = colour.toLowerCase() === "#f5f3ed";
     const isBlack = colour.toLowerCase() === "#292929";
     const source = isBlack ? MASTER_IMAGES[garment][side].black : MASTER_IMAGES[garment][side].white;
+    setAssetFailed(false);
+    setMessage("Loading garment master…");
     const cacheKey = source + ":" + colour.toLowerCase();
     const cached = renderCache.get(cacheKey);
 
@@ -119,15 +122,16 @@ export default function GarmentMasterPreview({ colour, garment = "hoodie", side 
       setMessage("");
     };
     master.onerror = () => {
-      if (!cancelled) setMessage("Garment asset missing. Check the matching front/back PNG in public/garments/.");
+      if (!cancelled) { setAssetFailed(true); setMessage(""); }
     };
     master.src = source;
     return () => { cancelled = true; };
-  }, [colour]);
+  }, [colour, garment, side]);
 
   return (
     <div className="garment-master-frame">
-      <canvas ref={canvasRef} className="garment-master-render" aria-label={`Photographic ${garment} ${side} preview`} />
+      <canvas ref={canvasRef} className="garment-master-render" aria-label={`Photographic ${garment} ${side} preview`} style={{ display: assetFailed ? "none" : "block" }} />
+      {assetFailed ? fallback : null}
       {message && <span className="garment-master-message">{message}</span>}
     </div>
   );
