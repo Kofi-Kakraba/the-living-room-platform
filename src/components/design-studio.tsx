@@ -61,6 +61,7 @@ export default function DesignStudio() {
   const [designName, setDesignName] = useState("My first design");
   const [textValue, setTextValue] = useState("YOUR DESIGN");
   const [status, setStatus] = useState("Ready to create");
+  const [artworkLibrary, setArtworkLibrary] = useState<{id:string;name:string;src:string}[]>([]);
   const [ratio, setRatio] = useState<Ratio>("1:1");
   const [backgroundMode, setBackgroundMode] = useState<"solid" | "transparent" | "wood">("solid");
   const [backgroundColour, setBackgroundColour] = useState("#f0eee9");
@@ -101,6 +102,15 @@ export default function DesignStudio() {
       canvas.on("selection:created", syncSelection);
       canvas.on("selection:updated", syncSelection);
       canvas.on("selection:cleared", () => { hideAlignmentGuides(); syncSelection(); });
+      // Empty clicks must always clear Fabric's active object and its transform controls.
+      canvas.on("mouse:down", (event) => {
+        if (!event.target) {
+          canvas.discardActiveObject();
+          hideAlignmentGuides();
+          syncSelection();
+          canvas.requestRenderAll();
+        }
+      });
       canvas.on("object:moving", (event) => {
         const target = event.target;
         if (!target) return;
@@ -160,18 +170,28 @@ export default function DesignStudio() {
     (object as any).__baseScaleX=1; (object as any).__baseScaleY=1; (object as any).__designScalePercent=100;
     canvas.add(object); canvas.setActiveObject(object); canvas.renderAll(); setStatus("Text added. Drag, resize or rotate it on the canvas.");
   };
-  const uploadArtwork = (file?: File) => {
-    const canvas=currentCanvas(); if(!canvas || !file) return;
-    if(!["image/png","image/jpeg","image/webp"].includes(file.type)){setStatus("Please use a PNG, JPG or WebP image.");return;}
-    if(file.size>8*1024*1024){setStatus("Please choose an image smaller than 8 MB.");return;}
-    const reader=new FileReader();
-    reader.onload=async()=>{if(typeof reader.result!=="string")return;try{
-      const image=await FabricImage.fromURL(reader.result); const max=Math.min(130,ratios[ratio][0]*.44);
+  const placeArtwork = async (src:string) => {
+    const canvas=currentCanvas(); if(!canvas) return;
+    try {
+      const image=await FabricImage.fromURL(src);
+      const max=Math.min(130,ratios[ratio][0]*.44);
       const scale=Math.min(max/(image.width||max),max/(image.height||max),1);
       image.set({left:ratios[ratio][0]/2,top:ratios[ratio][1]*.44,originX:"center",originY:"center",scaleX:scale,scaleY:scale,selectable:true,evented:true,lockMovementX:false,lockMovementY:false,hasControls:true,hasBorders:true,cornerColor:"#a66c4b",borderColor:"#a66c4b",transparentCorners:false});
       (image as any).__baseScaleX=scale; (image as any).__baseScaleY=scale; (image as any).__designScalePercent=100;
-      canvas.add(image);canvas.setActiveObject(image);canvas.renderAll();setStatus("Artwork uploaded. Drag it freely; centre guides appear when aligned.");
-    }catch{setStatus("That image could not be opened. Try another file.");}};
+      canvas.add(image); canvas.setActiveObject(image); canvas.requestRenderAll(); setStatus("Artwork placed. Drag, resize or rotate it on the garment.");
+    } catch { setStatus("That image could not be opened. Try another file."); }
+  };
+  const uploadArtwork = (file?: File) => {
+    if(!file) return;
+    if(!["image/png","image/jpeg","image/webp"].includes(file.type)){setStatus("Please use a PNG, JPG or WebP image.");return;}
+    if(file.size>8*1024*1024){setStatus("Please choose an image smaller than 8 MB.");return;}
+    const reader=new FileReader();
+    reader.onload=async()=>{if(typeof reader.result!=="string")return;
+      const src=reader.result;
+      const item={id:`${Date.now()}-${file.name}`,name:file.name,src};
+      setArtworkLibrary(old=>[item,...old.filter(x=>x.name!==file.name)]);
+      await placeArtwork(src);
+    };
     reader.readAsDataURL(file);
   };
   const removeSelected=()=>{const c=currentCanvas(),a=c?.getActiveObject();if(!c||!a)return;c.remove(a);c.discardActiveObject();c.renderAll();setStatus("Selected element removed.");};
@@ -208,7 +228,7 @@ export default function DesignStudio() {
           <label className="control-label" htmlFor="design-name">DESIGN NAME</label><input id="design-name" className="text-input" value={designName} onChange={e=>setDesignName(e.target.value)} maxLength={60}/>
           <div className="control-group"><span className="control-label">PRINT SIDE</span><div className="segmented"><button className={side==="front"?"active":""} onClick={()=>setSide("front")}>Front</button><button className={side==="back"?"active":""} onClick={()=>setSide("back")}>Back</button></div></div>
           <div className="control-group"><label className="control-label" htmlFor="text-content">ADD TEXT</label><input id="text-content" className="text-input" value={textValue} onChange={e=>setTextValue(e.target.value)} maxLength={50}/><button className="tool-button" onClick={addText}><Type size={16}/> Add text</button></div>
-          <div className="control-group"><span className="control-label">DESIGN GRAPHIC</span><label className="upload-button"><ImagePlus size={17}/> Upload PNG / JPG<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>uploadArtwork(e.target.files?.[0])}/></label><small className="helper-text">Transparent PNG recommended · up to 8 MB</small></div>
+          <div className="control-group"><span className="control-label">DESIGN GRAPHIC</span><label className="upload-button"><ImagePlus size={17}/> Upload PNG / JPG<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>uploadArtwork(e.target.files?.[0])}/></label><small className="helper-text">Upload once, then reuse it on any garment or side.</small>{artworkLibrary.length>0 && <div className="artwork-library"><span className="control-label">YOUR UPLOADED ARTWORK</span>{artworkLibrary.map(item=><button type="button" key={item.id} className="artwork-library-item" onClick={()=>placeArtwork(item.src)}><img src={item.src} alt=""/><span>{item.name}</span><small>Place on {side}</small></button>)}</div>}</div>
           <div className="control-group"><span className="control-label">ADJUST SELECTED DESIGN</span><label className="slider-label">Size <b>{activeScale}%</b></label><input type="range" min="25" max="250" value={activeScale} onChange={e=>{setActiveScale(+e.target.value);updateSelected("scale",+e.target.value);}}/><label className="slider-label">Rotation <b>{activeRotation}°</b></label><input type="range" min="-180" max="180" value={activeRotation} onChange={e=>{setActiveRotation(+e.target.value);updateSelected("angle",+e.target.value);}}/><label className="slider-label">Opacity <b>{opacity}%</b></label><input type="range" min="10" max="100" value={opacity} onChange={e=>{setOpacity(+e.target.value);updateSelected("opacity",+e.target.value);}}/></div>
           <div className="control-group"><button className="tool-button" onClick={()=>{const c=currentCanvas(),a=c?.getActiveObject();if(c&&a){a.rotate((a.angle||0)+15);c.renderAll();setActiveRotation(Math.round(a.angle||0));}}}><RotateCw size={15}/> Rotate +15°</button><button className="tool-button danger-tool" onClick={removeSelected}><Trash2 size={15}/> Delete selected</button></div>
         </>}
