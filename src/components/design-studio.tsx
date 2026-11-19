@@ -91,8 +91,13 @@ export default function DesignStudio() {
       const canvas = new Canvas(element, { width:w, height:h, backgroundColor:"rgba(255,255,255,0)", preserveObjectStacking:true, selection:true, skipTargetFind:false, defaultCursor:"default", hoverCursor:"move", moveCursor:"grabbing" });
       const guide = new Rect({ left:w*.24, top:h*.2, width:w*.52, height:h*.58, fill:"rgba(255,255,255,0.01)", stroke:"#a66c4b", strokeDashArray:[5,5], strokeWidth:1.3, selectable:false, evented:false, visible:false, name:"print-area-guide" });
       canvas.add(guide);
-      canvas.on("selection:created", syncSelection);
-      canvas.on("selection:updated", syncSelection);
+      canvas.on("selection:created", () => { guide.set("visible", true); canvas.requestRenderAll(); syncSelection(); });
+      canvas.on("selection:updated", () => { guide.set("visible", true); canvas.requestRenderAll(); syncSelection(); });
+      canvas.on("selection:cleared", () => { guide.set("visible", false); canvas.requestRenderAll(); syncSelection(); });
+      canvas.on("mouse:down", (event) => { if (!event.target) { canvas.discardActiveObject(); guide.set("visible", false); canvas.requestRenderAll(); syncSelection(); } });
+      canvas.on("object:moving", syncSelection);
+      canvas.on("object:scaling", syncSelection);
+      canvas.on("object:rotating", syncSelection);
       canvas.on("object:modified", syncSelection);
       canvases.current[view] = canvas;
     };
