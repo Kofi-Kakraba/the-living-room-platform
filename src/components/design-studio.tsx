@@ -74,7 +74,7 @@ export default function DesignStudio() {
   useEffect(() => {
     const [w,h] = ratios[ratio];
     const syncSelection = () => {
-      const active = canvases.current[side]?.getActiveObject();
+      const active = canvases.current.front?.getActiveObject() ?? canvases.current.back?.getActiveObject();
       if (active) { setOpacity(Math.round((active.opacity ?? 1)*100)); setActiveScale(Math.round((active.scaleX ?? 1)*100)); setActiveRotation(Math.round(active.angle ?? 0)); }
     };
     const setup = (element: HTMLCanvasElement | null, view: Side) => {
