@@ -17,6 +17,16 @@ Editor features in this prototype:
 - 1000 px and 2000 px PNG design-canvas export
 - Prototype controls for fold shadows, fabric shine and scene props
 
+## Photographic hoodie back rendering
+
+The studio now has a client-side garment-master renderer for the supplied hoodie back photographs. It preserves the source alpha channel and fabric luminance while applying a selected colour, and caches recent colour variants in memory. The exact black and white options use their corresponding photographic masters.
+
+Place the two prepared transparent PNGs at:
+- `public/garments/hoodie-white-back.png`
+- `public/garments/hoodie-black-back.png`
+
+The supplied files are rear views only. The hoodie front and all other garment views remain illustrative until their matching approved master images are added. Colour previews are not calibrated production proofs or a stock feed.
+
 ## Important prototype limitations
 
 - Garment visuals are illustrative SVG placeholders, not approved garment photography. Front/back views are not yet production-accurate garment master images.
