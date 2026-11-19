@@ -253,7 +253,7 @@ export default function DesignStudio() {
       </aside>
       <main className="design-stage design-stage-v2">
         <div className="stage-topline"><span>{garments.find(g=>g.id===garment)?.label.toUpperCase()}</span><span>{side.toUpperCase()} · {colour.toUpperCase()}</span></div>
-        <div className={"garment-preview "+(backgroundMode==="transparent"?"transparent-stage":backgroundMode==="wood"?"wood-stage":"")} style={{background:backgroundMode==="solid"?backgroundColour:undefined}}>
+        <div className={"garment-preview "+(backgroundMode==="transparent"?"transparent-stage":backgroundMode==="wood"?"wood-stage":"")} style={{background:backgroundMode==="solid"?backgroundColour:undefined}} onPointerDown={(event)=>{if(!(event.target as HTMLElement).closest(".upper-canvas")){const active=currentCanvas();active?.discardActiveObject();active?.getObjects().filter(object=>String(object.get("name")||"").startsWith("alignment-guide-")).forEach(object=>object.set("visible",false));active?.requestRenderAll();setOpacity(100);setActiveScale(100);setActiveRotation(0);}}}>
           {(garment === "hoodie" || garment === "crewneck") ? <GarmentMasterPreview colour={colour} garment={garment} side={side} fallback={<GarmentShape garment={garment} colour={colour} side={side}/>} /> : <GarmentShape garment={garment} colour={colour} side={side}/>}
           <div className="garment-artwork-overlay">
             <div className="canvas-wrap" style={{...ratioStyle,display:side==="front"?"block":"none"}}><canvas ref={frontElement}/></div>
