@@ -238,7 +238,17 @@ export default function DesignStudio() {
         else source="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(new XMLSerializer().serializeToString(element));
         const image=new Image();
         await new Promise<void>((resolve,reject)=>{image.onload=()=>resolve();image.onerror=()=>reject(new Error("A garment layer could not be rendered"));image.src=source;});
-        ctx.drawImage(image,(rect.left-bounds.left)*scale,(rect.top-bounds.top)*scale,rect.width*scale,rect.height*scale);
+        const isGarmentMaster=element instanceof HTMLCanvasElement && element.classList.contains("garment-master-render");
+        let drawX=(rect.left-bounds.left)*scale, drawY=(rect.top-bounds.top)*scale, drawW=rect.width*scale, drawH=rect.height*scale;
+        if(isGarmentMaster){
+          const naturalW=(element as HTMLCanvasElement).width||image.naturalWidth;
+          const naturalH=(element as HTMLCanvasElement).height||image.naturalHeight;
+          const fit=Math.min(rect.width/naturalW,rect.height/naturalH);
+          drawW=naturalW*fit*scale; drawH=naturalH*fit*scale;
+          drawX=(rect.left-bounds.left+(rect.width-naturalW*fit)/2)*scale;
+          drawY=(rect.top-bounds.top+(rect.height-naturalH*fit)/2)*scale;
+        }
+        ctx.drawImage(image,drawX,drawY,drawW,drawH);
       };
       const garmentLayer=stage.querySelector<HTMLCanvasElement>(".garment-master-render")??stage.querySelector<SVGSVGElement>(".garment-svg");
       if(!garmentLayer)throw new Error("The garment image is not available yet");
