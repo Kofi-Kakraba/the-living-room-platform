@@ -2,8 +2,19 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const WHITE_MASTER = "/garments/hoodie-white-back.png";
-const BLACK_MASTER = "/garments/hoodie-black-back.png";
+type GarmentMaster = "hoodie" | "crewneck";
+type GarmentSide = "front" | "back";
+
+const MASTER_IMAGES: Record<GarmentMaster, Record<GarmentSide, { white: string; black: string }>> = {
+  hoodie: {
+    front: { white: "/garments/hoodie-white-front.png", black: "/garments/hoodie-black-front.png" },
+    back: { white: "/garments/hoodie-white-back.png", black: "/garments/hoodie-black-back.png" },
+  },
+  crewneck: {
+    front: { white: "/garments/tshirt-white-front.png", black: "/garments/tshirt-black-front.png" },
+    back: { white: "/garments/tshirt-white-back.png", black: "/garments/tshirt-black-back.png" },
+  },
+};
 const renderCache = new Map<string, string>();
 const MAX_CACHE_ENTRIES = 24;
 
@@ -31,7 +42,7 @@ function hexToRgb(hex: string): [number, number, number] | null {
  * alpha cut-out, folds and seams. Exact black/white masters are preferred
  * for those colours; this renderer is a visual preview, not a colour proof.
  */
-export default function GarmentMasterPreview({ colour }: { colour: string }) {
+export default function GarmentMasterPreview({ colour, garment = "hoodie", side = "back" }: { colour: string; garment?: GarmentMaster; side?: GarmentSide }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [message, setMessage] = useState("Loading garment master…");
 
@@ -43,7 +54,7 @@ export default function GarmentMasterPreview({ colour }: { colour: string }) {
 
     const isWhite = colour.toLowerCase() === "#f5f3ed";
     const isBlack = colour.toLowerCase() === "#292929";
-    const source = isBlack ? BLACK_MASTER : WHITE_MASTER;
+    const source = isBlack ? MASTER_IMAGES[garment][side].black : MASTER_IMAGES[garment][side].white;
     const cacheKey = source + ":" + colour.toLowerCase();
     const cached = renderCache.get(cacheKey);
 
@@ -108,7 +119,7 @@ export default function GarmentMasterPreview({ colour }: { colour: string }) {
       setMessage("");
     };
     master.onerror = () => {
-      if (!cancelled) setMessage("Garment asset missing. Add the supplied files to public/garments/.");
+      if (!cancelled) setMessage("Garment asset missing. Check the matching front/back PNG in public/garments/.");
     };
     master.src = source;
     return () => { cancelled = true; };
@@ -116,7 +127,7 @@ export default function GarmentMasterPreview({ colour }: { colour: string }) {
 
   return (
     <div className="garment-master-frame">
-      <canvas ref={canvasRef} className="garment-master-render" aria-label="Photographic hoodie back preview" />
+      <canvas ref={canvasRef} className="garment-master-render" aria-label={`Photographic ${garment} ${side} preview`} />
       {message && <span className="garment-master-message">{message}</span>}
     </div>
   );
