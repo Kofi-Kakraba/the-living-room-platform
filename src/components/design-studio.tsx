@@ -73,6 +73,10 @@ export default function DesignStudio() {
 
   useEffect(() => {
     const [w,h] = ratios[ratio];
+    const syncSelection = () => {
+      const active = canvases.current[side]?.getActiveObject();
+      if (active) { setOpacity(Math.round((active.opacity ?? 1)*100)); setActiveScale(Math.round((active.scaleX ?? 1)*100)); setActiveRotation(Math.round(active.angle ?? 0)); }
+    };
     const setup = (element: HTMLCanvasElement | null, view: Side) => {
       if (!element) return;
       const canvas = new Canvas(element, { width:w, height:h, backgroundColor:"rgba(255,255,255,0)", preserveObjectStacking:true, selection:true });
@@ -82,10 +86,6 @@ export default function DesignStudio() {
       canvas.on("selection:updated", syncSelection);
       canvas.on("object:modified", syncSelection);
       canvases.current[view] = canvas;
-    };
-    const syncSelection = () => {
-      const active = canvases.current[side]?.getActiveObject();
-      if (active) { setOpacity(Math.round((active.opacity ?? 1)*100)); setActiveScale(Math.round((active.scaleX ?? 1)*100)); setActiveRotation(Math.round(active.angle ?? 0)); }
     };
     setup(frontElement.current,"front");
     setup(backElement.current,"back");
@@ -118,7 +118,7 @@ export default function DesignStudio() {
   const updateSelected=(key:"opacity"|"scale"|"angle",value:number)=>{
     const c=currentCanvas(),a=c?.getActiveObject();if(!c||!a)return;
     if(key==="opacity")a.set("opacity",value/100);
-    if(key==="scale"){const base=(a as any).__baseScale || a.scaleX || 1;(a as any).__baseScale=base;a.scale(base*value/100);}
+    if(key==="scale"){const base=(a as unknown as { __baseScale?: number }).__baseScale || a.scaleX || 1;(a as any).__baseScale=base;a.scale(base*value/100);}
     if(key==="angle")a.rotate(value);
     c.renderAll();
   };
@@ -130,7 +130,7 @@ export default function DesignStudio() {
   };
   const clearDesign=()=>{const c=currentCanvas();if(!c)return;const guide=c.getObjects().find(o=>o.get("name")==="print-area-guide");c.clear();if(guide)c.add(guide);c.renderAll();setStatus("Current side cleared.");};
   const chooseColour=(hex:string)=>{setColour(hex);setCustomHex(hex);};
-  const tabItems: {id:Tab;label:string;icon:any}[]=[{id:"design",label:"Design",icon:Layers3},{id:"garment",label:"Garment",icon:Shirt},{id:"canvas",label:"Canvas",icon:Layout},{id:"props",label:"Props",icon:Sparkles}];
+  const tabItems: {id:Tab;label:string;icon:typeof Layers3}[]=[{id:"design",label:"Design",icon:Layers3},{id:"garment",label:"Garment",icon:Shirt},{id:"canvas",label:"Canvas",icon:Layout},{id:"props",label:"Props",icon:Sparkles}];
   const ratioStyle={aspectRatio:ratio.replace(":"," / ")};
   return <div className="studio-card studio-v2">
     <div className="studio-toolbar"><div className="studio-title"><span className="live-indicator"/> THE LIVING ROOM STUDIO <small>PREVIEW</small></div><div className="studio-save-state">{status}</div></div>
