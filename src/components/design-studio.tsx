@@ -88,8 +88,8 @@ export default function DesignStudio() {
     };
     const setup = (element: HTMLCanvasElement | null, view: Side) => {
       if (!element) return;
-      const canvas = new Canvas(element, { width:w, height:h, backgroundColor:"rgba(255,255,255,0)", preserveObjectStacking:true, selection:true });
-      const guide = new Rect({ left:w*.24, top:h*.2, width:w*.52, height:h*.58, fill:"rgba(255,255,255,0.01)", stroke:"#a66c4b", strokeDashArray:[5,5], strokeWidth:1.3, selectable:false, evented:false, name:"print-area-guide" });
+      const canvas = new Canvas(element, { width:w, height:h, backgroundColor:"rgba(255,255,255,0)", preserveObjectStacking:true, selection:true, skipTargetFind:false, defaultCursor:"default", hoverCursor:"move", moveCursor:"grabbing" });
+      const guide = new Rect({ left:w*.24, top:h*.2, width:w*.52, height:h*.58, fill:"rgba(255,255,255,0.01)", stroke:"#a66c4b", strokeDashArray:[5,5], strokeWidth:1.3, selectable:false, evented:false, visible:false, name:"print-area-guide" });
       canvas.add(guide);
       canvas.on("selection:created", syncSelection);
       canvas.on("selection:updated", syncSelection);
@@ -209,7 +209,7 @@ export default function DesignStudio() {
       </aside>
       <main className="design-stage design-stage-v2">
         <div className="stage-topline"><span>{garments.find(g=>g.id===garment)?.label.toUpperCase()}</span><span>{side.toUpperCase()} · {colour.toUpperCase()}</span></div>
-        <div className={"garment-preview "+(backgroundMode==="transparent"?"transparent-stage":backgroundMode==="wood"?"wood-stage":"")} style={{background:backgroundMode==="solid"?backgroundColour:undefined}}>
+        <div className={"garment-preview "+(backgroundMode==="transparent"?"transparent-stage":backgroundMode==="wood"?"wood-stage":"")} style={{background:backgroundMode==="solid"?backgroundColour:undefined}} onPointerDown={(event)=>{if(!(event.target as HTMLElement).closest(".canvas-container")){const active=currentCanvas();active?.discardActiveObject();const guide=active?.getObjects().find(object=>object.get("name")==="print-area-guide");guide?.set("visible",false);active?.requestRenderAll();setOpacity(100);setActiveScale(100);setActiveRotation(0);}}}>
           {(garment === "hoodie" || garment === "crewneck") ? <GarmentMasterPreview colour={colour} garment={garment} side={side} fallback={<GarmentShape garment={garment} colour={colour} side={side}/>} /> : <GarmentShape garment={garment} colour={colour} side={side}/>}
           <div className="garment-artwork-overlay">
             <div className="canvas-wrap" style={{...ratioStyle,width:ratios[ratio][0],height:ratios[ratio][1]}}>
