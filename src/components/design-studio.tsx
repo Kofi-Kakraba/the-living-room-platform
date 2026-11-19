@@ -94,6 +94,17 @@ export default function DesignStudio() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const [w,h] = ratios[ratio];
+    ([canvases.current.front, canvases.current.back]).forEach((canvas) => {
+      if (!canvas) return;
+      canvas.setDimensions({ width:w, height:h });
+      const guide = canvas.getObjects().find(object => object.get("name") === "print-area-guide");
+      if (guide) guide.set({ left:w*.24, top:h*.2, width:w*.52, height:h*.58 });
+      canvas.renderAll();
+    });
+  }, [ratio]);
+
   const currentCanvas = () => canvases.current[side];
   const addText = () => {
     const canvas=currentCanvas(); if(!canvas) return;
