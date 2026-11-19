@@ -50,6 +50,7 @@ function GarmentShape({ garment, colour, side }: { garment: Garment; colour: str
 }
 
 export default function DesignStudio() {
+  const previewElement = useRef<HTMLDivElement>(null);
   const frontElement = useRef<HTMLCanvasElement>(null);
   const backElement = useRef<HTMLCanvasElement>(null);
   const canvases = useRef<CanvasRecord>({ front: null, back: null });
@@ -202,18 +203,53 @@ export default function DesignStudio() {
     if(key==="angle")a.rotate(value);
     c.renderAll();
   };
-  const exportPreview=()=>{
+  const downloadDataUrl=(dataUrl:string,suffix:string)=>{
+    const link=document.createElement("a");
+    link.href=dataUrl;
+    link.download=(designName.toLowerCase().replace(/[^a-z0-9]+/g,"-")||"tlr-design")+"-"+garment+"-"+side+"-"+suffix+".png";
+    document.body.appendChild(link); link.click(); link.remove();
+  };
+  const exportArtwork=()=>{
     const c=currentCanvas();if(!c)return;
     const targetLongEdge=quality==="2x"?2000:1000;
     const multiplier=targetLongEdge/Math.max(c.getWidth(),c.getHeight());
     c.getObjects().filter(object=>String(object.get("name")||"").startsWith("alignment-guide-")).forEach(object=>object.set("visible",false));
     c.renderAll();
-    const dataUrl=c.toDataURL({format:"png",multiplier});
-    const link=document.createElement("a");
-    link.href=dataUrl;
-    link.download=(designName.toLowerCase().replace(/[^a-z0-9]+/g,"-")||"tlr-design")+"-"+side+"-artwork-"+targetLongEdge+"px.png";
-    link.click();
-    setStatus("Transparent artwork PNG exported. This is artwork only, not a garment mockup or print-ready production file.");
+    downloadDataUrl(c.toDataURL({format:"png",multiplier}),"artwork");
+    setStatus("Transparent artwork PNG downloaded.");
+  };
+  const exportMockup=async()=>{
+    const stage=previewElement.current, c=currentCanvas();
+    if(!stage||!c){setStatus("The mockup is not ready to export yet.");return;}
+    try{
+      setStatus("Preparing your garment mockup…");
+      const bounds=stage.getBoundingClientRect(), targetLongEdge=quality==="2x"?2000:1000;
+      const scale=targetLongEdge/Math.max(bounds.width,bounds.height);
+      const output=document.createElement("canvas");
+      output.width=Math.round(bounds.width*scale); output.height=Math.round(bounds.height*scale);
+      const ctx=output.getContext("2d"); if(!ctx)throw new Error("Canvas export is unavailable");
+      ctx.fillStyle=backgroundMode==="solid"?backgroundColour:"#f3f4f6";
+      ctx.fillRect(0,0,output.width,output.height);
+      const drawElement=async(element:HTMLCanvasElement|SVGSVGElement|null)=>{
+        if(!element)return;
+        const rect=element.getBoundingClientRect(); if(!rect.width||!rect.height)return;
+        let source:string;
+        if(element instanceof HTMLCanvasElement)source=element.toDataURL("image/png");
+        else source="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(new XMLSerializer().serializeToString(element));
+        const image=new Image();
+        await new Promise<void>((resolve,reject)=>{image.onload=()=>resolve();image.onerror=()=>reject(new Error("A garment layer could not be rendered"));image.src=source;});
+        ctx.drawImage(image,(rect.left-bounds.left)*scale,(rect.top-bounds.top)*scale,rect.width*scale,rect.height*scale);
+      };
+      const garmentLayer=stage.querySelector<HTMLCanvasElement>(".garment-master-render")??stage.querySelector<SVGSVGElement>(".garment-svg");
+      if(!garmentLayer)throw new Error("The garment image is not available yet");
+      await drawElement(garmentLayer);
+      await drawElement(c.lowerCanvasEl as HTMLCanvasElement);
+      downloadDataUrl(output.toDataURL("image/png"),"mockup");
+      setStatus("Complete garment mockup downloaded with your positioned artwork.");
+    }catch(error){
+      console.error("Mockup export failed",error);
+      setStatus(error instanceof Error?error.message:"Could not export the garment mockup. Please try again.");
+    }
   };
   const clearDesign=()=>{const c=currentCanvas();if(!c)return;const guides=c.getObjects().filter(o=>String(o.get("name")||"").startsWith("alignment-guide-"));c.clear();c.add(...guides);guides.forEach(o=>o.set("visible",false));c.renderAll();setStatus("Current side cleared.");};
   const chooseColour=(hex:string)=>{setColour(hex);setCustomHex(hex);};
@@ -249,11 +285,11 @@ export default function DesignStudio() {
           <div className="props-grid">{["Plant","Straw hat","Sneakers","Sunglasses","Jeans","Tote bag","Palm leaf","Denim shorts"].map(p=><button className={props.includes(p)?"selected":""} key={p} onClick={()=>setProps(old=>old.includes(p)?old.filter(x=>x!==p):[...old,p])}>{p}</button>)}</div>
           <div className="control-group"><span className="control-label">FABRIC EFFECTS · PREVIEW CONTROLS</span><label className="slider-label">Fold shadows <b>{foldShadows}%</b></label><input type="range" min="0" max="100" value={foldShadows} onChange={e=>setFoldShadows(+e.target.value)}/><label className="slider-label">Fabric shine <b>{fabricShine}%</b></label><input type="range" min="0" max="100" value={fabricShine} onChange={e=>setFabricShine(+e.target.value)}/></div>
         </>}
-        <button className="export-button" onClick={exportPreview}><ArrowDownToLine size={16}/> Export {quality==="2x"?"2000":"1000"} px PNG</button><button className="clear-button" onClick={clearDesign}><RotateCcw size={14}/> Clear {side} design</button>
+        <button className="export-button" onClick={exportMockup}><ArrowDownToLine size={16}/> Download garment mockup</button><button className="tool-button" onClick={exportArtwork}><ImagePlus size={15}/> Download artwork only</button><button className="clear-button" onClick={clearDesign}><RotateCcw size={14}/> Clear {side} design</button>
       </aside>
       <main className="design-stage design-stage-v2">
         <div className="stage-topline"><span>{garments.find(g=>g.id===garment)?.label.toUpperCase()}</span><span>{side.toUpperCase()} · {colour.toUpperCase()}</span></div>
-        <div className={"garment-preview "+(backgroundMode==="transparent"?"transparent-stage":backgroundMode==="wood"?"wood-stage":"")} style={{background:backgroundMode==="solid"?backgroundColour:undefined}} onPointerDown={(event)=>{if(!(event.target as HTMLElement).closest(".upper-canvas")){const active=currentCanvas();active?.discardActiveObject();active?.getObjects().filter(object=>String(object.get("name")||"").startsWith("alignment-guide-")).forEach(object=>object.set("visible",false));active?.requestRenderAll();setOpacity(100);setActiveScale(100);setActiveRotation(0);}}}>
+        <div ref={previewElement} className={"garment-preview "+(backgroundMode==="transparent"?"transparent-stage":backgroundMode==="wood"?"wood-stage":"")} style={{background:backgroundMode==="solid"?backgroundColour:undefined}} onPointerDown={(event)=>{if(!(event.target as HTMLElement).closest(".upper-canvas")){const active=currentCanvas();active?.discardActiveObject();active?.getObjects().filter(object=>String(object.get("name")||"").startsWith("alignment-guide-")).forEach(object=>object.set("visible",false));active?.requestRenderAll();setOpacity(100);setActiveScale(100);setActiveRotation(0);}}}>
           {(garment === "hoodie" || garment === "crewneck") ? <GarmentMasterPreview colour={colour} garment={garment} side={side} fallback={<GarmentShape garment={garment} colour={colour} side={side}/>} /> : <GarmentShape garment={garment} colour={colour} side={side}/>}
           <div className="garment-artwork-overlay">
             <div className="canvas-wrap" style={{...ratioStyle,display:side==="front"?"block":"none"}}><canvas ref={frontElement}/></div>
