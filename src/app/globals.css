@@ -176,3 +176,11 @@ img{display:block;max-width:100%}
 .garment-master-frame{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}
 .garment-master-render{width:min(94%,650px);height:100%;max-height:510px;object-fit:contain;filter:drop-shadow(0 17px 18px #1b1d221a)}
 .garment-master-message{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:80%;padding:9px 12px;background:#ffffffdc;color:#6f737a;font-size:10px;text-align:center;border:1px solid #e6e6e6}
+
+
+/* Reliable direct manipulation and selection dismissal for the Fabric artwork layer */
+.design-stage-v2 .garment-artwork-overlay{z-index:4}
+.design-stage-v2 .canvas-wrap .canvas-container{touch-action:none!important;cursor:default}
+.design-stage-v2 .canvas-wrap .canvas-container canvas{touch-action:none!important}
+.design-stage-v2 .canvas-wrap .canvas-container .upper-canvas{cursor:default!important;pointer-events:auto!important}
+.design-stage-v2 .canvas-wrap .canvas-container .upper-canvas:active{cursor:grabbing!important}
