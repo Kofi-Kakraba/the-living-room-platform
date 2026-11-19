@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Canvas, FabricImage, IText, Rect } from "fabric";
+import { Canvas, FabricImage, IText, Line } from "fabric";
 import { ArrowDownToLine, ImagePlus, RotateCcw, RotateCw, Trash2, Type, Layers3, Shirt, Layout, Sparkles, SlidersHorizontal } from "lucide-react";
 import GarmentMasterPreview from "./garment-master-preview";
 
@@ -88,28 +88,37 @@ export default function DesignStudio() {
     };
     const setup = (element: HTMLCanvasElement | null, view: Side) => {
       if (!element) return;
-      const canvas = new Canvas(element, { width:w, height:h, backgroundColor:"rgba(255,255,255,0)", preserveObjectStacking:true, selection:true, skipTargetFind:false, defaultCursor:"default", hoverCursor:"move", moveCursor:"grabbing" });
-      const guide = new Rect({ left:w*.24, top:h*.2, width:w*.52, height:h*.58, fill:"rgba(255,255,255,0.01)", stroke:"#a66c4b", strokeDashArray:[5,5], strokeWidth:1.3, selectable:false, evented:false, visible:false, name:"print-area-guide" });
-      canvas.add(guide);
-      canvas.on("selection:created", () => { guide.set("visible", true); canvas.requestRenderAll(); syncSelection(); });
-      canvas.on("selection:updated", () => { guide.set("visible", true); canvas.requestRenderAll(); syncSelection(); });
-      canvas.on("selection:cleared", () => { guide.set("visible", false); canvas.requestRenderAll(); syncSelection(); });
-      canvas.on("mouse:down", (event) => {
-        if (event.target && event.target !== guide) {
-          event.target.set({ selectable:true, evented:true, lockMovementX:false, lockMovementY:false });
-          canvas.setActiveObject(event.target);
-          guide.set("visible", true);
-        } else {
-          canvas.discardActiveObject();
-          guide.set("visible", false);
-        }
+      const canvas = new Canvas(element, { width:w, height:h, backgroundColor:"rgba(255,255,255,0)", preserveObjectStacking:true, selection:true, skipTargetFind:false, defaultCursor:"default", hoverCursor:"move", moveCursor:"grabbing", uniformScaling:true, centeredScaling:false, centeredRotation:true });
+      // Smart alignment guides are invisible until the artwork is dragged near page centre.
+      const verticalGuide = new Line([w/2,0,w/2,h], { stroke:"#ef476f", strokeWidth:1, strokeDashArray:[5,5], selectable:false, evented:false, visible:false, excludeFromExport:true, name:"alignment-guide-x" });
+      const horizontalGuide = new Line([0,h/2,w,h/2], { stroke:"#ef476f", strokeWidth:1, strokeDashArray:[5,5], selectable:false, evented:false, visible:false, excludeFromExport:true, name:"alignment-guide-y" });
+      canvas.add(verticalGuide, horizontalGuide);
+      const hideAlignmentGuides = () => {
+        verticalGuide.set("visible",false);
+        horizontalGuide.set("visible",false);
         canvas.requestRenderAll();
+      };
+      canvas.on("selection:created", syncSelection);
+      canvas.on("selection:updated", syncSelection);
+      canvas.on("selection:cleared", () => { hideAlignmentGuides(); syncSelection(); });
+      canvas.on("object:moving", (event) => {
+        const target = event.target;
+        if (!target) return;
+        const center = target.getCenterPoint();
+        const tolerance = 7;
+        const alignX = Math.abs(center.x - canvas.getWidth()/2) <= tolerance;
+        const alignY = Math.abs(center.y - canvas.getHeight()/2) <= tolerance;
+        verticalGuide.set("visible",alignX);
+        horizontalGuide.set("visible",alignY);
+        if (alignX) canvas.bringObjectToFront(verticalGuide);
+        if (alignY) canvas.bringObjectToFront(horizontalGuide);
         syncSelection();
+        canvas.requestRenderAll();
       });
-      canvas.on("object:moving", syncSelection);
+      canvas.on("mouse:up", hideAlignmentGuides);
       canvas.on("object:scaling", syncSelection);
       canvas.on("object:rotating", syncSelection);
-      canvas.on("object:modified", syncSelection);
+      canvas.on("object:modified", () => { hideAlignmentGuides(); syncSelection(); });
       canvases.current[view] = canvas;
     };
     setup(frontElement.current,"front");
@@ -124,8 +133,10 @@ export default function DesignStudio() {
     ([canvases.current.front, canvases.current.back]).forEach((canvas) => {
       if (!canvas) return;
       canvas.setDimensions({ width:w, height:h });
-      const guide = canvas.getObjects().find(object => object.get("name") === "print-area-guide");
-      if (guide) guide.set({ left:w*.24, top:h*.2, width:w*.52, height:h*.58 });
+      const verticalGuide = canvas.getObjects().find(object => object.get("name") === "alignment-guide-x");
+      const horizontalGuide = canvas.getObjects().find(object => object.get("name") === "alignment-guide-y");
+      if (verticalGuide) verticalGuide.set({ x1:w/2, y1:0, x2:w/2, y2:h, visible:false });
+      if (horizontalGuide) horizontalGuide.set({ x1:0, y1:h/2, x2:w, y2:h/2, visible:false });
       canvas.renderAll();
     });
   }, [ratio]);
@@ -159,7 +170,7 @@ export default function DesignStudio() {
       const scale=Math.min(max/(image.width||max),max/(image.height||max),1);
       image.set({left:ratios[ratio][0]/2,top:ratios[ratio][1]*.44,originX:"center",originY:"center",scaleX:scale,scaleY:scale,selectable:true,evented:true,lockMovementX:false,lockMovementY:false,hasControls:true,hasBorders:true,cornerColor:"#a66c4b",borderColor:"#a66c4b",transparentCorners:false});
       (image as any).__baseScaleX=scale; (image as any).__baseScaleY=scale; (image as any).__designScalePercent=100;
-      canvas.add(image);canvas.setActiveObject(image);canvas.renderAll();setStatus("Artwork uploaded. Position it inside the print guide.");
+      canvas.add(image);canvas.setActiveObject(image);canvas.renderAll();setStatus("Artwork uploaded. Drag it freely; centre guides appear when aligned.");
     }catch{setStatus("That image could not be opened. Try another file.");}};
     reader.readAsDataURL(file);
   };
@@ -175,19 +186,16 @@ export default function DesignStudio() {
     const c=currentCanvas();if(!c)return;
     const targetLongEdge=quality==="2x"?2000:1000;
     const multiplier=targetLongEdge/Math.max(c.getWidth(),c.getHeight());
-    const guide=c.getObjects().find(object=>object.get("name")==="print-area-guide");
-    if(guide) guide.set("visible",false);
+    c.getObjects().filter(object=>String(object.get("name")||"").startsWith("alignment-guide-")).forEach(object=>object.set("visible",false));
     c.renderAll();
     const dataUrl=c.toDataURL({format:"png",multiplier});
-    if(guide) guide.set("visible",true);
-    c.renderAll();
     const link=document.createElement("a");
     link.href=dataUrl;
     link.download=(designName.toLowerCase().replace(/[^a-z0-9]+/g,"-")||"tlr-design")+"-"+side+"-artwork-"+targetLongEdge+"px.png";
     link.click();
     setStatus("Transparent artwork PNG exported. This is artwork only, not a garment mockup or print-ready production file.");
   };
-  const clearDesign=()=>{const c=currentCanvas();if(!c)return;const guide=c.getObjects().find(o=>o.get("name")==="print-area-guide");c.clear();if(guide)c.add(guide);c.renderAll();setStatus("Current side cleared.");};
+  const clearDesign=()=>{const c=currentCanvas();if(!c)return;const guides=c.getObjects().filter(o=>String(o.get("name")||"").startsWith("alignment-guide-"));c.clear();c.add(...guides);guides.forEach(o=>o.set("visible",false));c.renderAll();setStatus("Current side cleared.");};
   const chooseColour=(hex:string)=>{setColour(hex);setCustomHex(hex);};
   const tabItems: {id:Tab;label:string;icon:typeof Layers3}[]=[{id:"design",label:"Design",icon:Layers3},{id:"garment",label:"Garment",icon:Shirt},{id:"canvas",label:"Canvas",icon:Layout},{id:"props",label:"Props",icon:Sparkles}];
   const ratioStyle={aspectRatio:ratio.replace(":"," / ")};
@@ -228,10 +236,8 @@ export default function DesignStudio() {
         <div className={"garment-preview "+(backgroundMode==="transparent"?"transparent-stage":backgroundMode==="wood"?"wood-stage":"")} style={{background:backgroundMode==="solid"?backgroundColour:undefined}}>
           {(garment === "hoodie" || garment === "crewneck") ? <GarmentMasterPreview colour={colour} garment={garment} side={side} fallback={<GarmentShape garment={garment} colour={colour} side={side}/>} /> : <GarmentShape garment={garment} colour={colour} side={side}/>}
           <div className="garment-artwork-overlay">
-            <div className="canvas-wrap" style={{...ratioStyle,width:ratios[ratio][0],height:ratios[ratio][1]}}>
-              <canvas ref={frontElement} style={{display:side==="front"?"block":"none"}}/>
-              <canvas ref={backElement} style={{display:side==="back"?"block":"none"}}/>
-            </div>
+            <div className="canvas-wrap" style={{...ratioStyle,display:side==="front"?"block":"none"}}><canvas ref={frontElement}/></div>
+            <div className="canvas-wrap" style={{...ratioStyle,display:side==="back"?"block":"none"}}><canvas ref={backElement}/></div>
           </div>
           <div className="mockup-placeholder-tag">{(garment === "hoodie" || garment === "crewneck") ? `PHOTOGRAPHIC GARMENT MASTER · ${side.toUpperCase()}` : "ILLUSTRATIVE GARMENT TEMPLATE"}</div>
         </div>
