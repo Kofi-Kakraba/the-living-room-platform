@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Canvas, FabricImage, IText, Rect } from "fabric";
 import { ArrowDownToLine, ImagePlus, RotateCcw, RotateCw, Trash2, Type, Layers3, Shirt, Layout, Sparkles, SlidersHorizontal } from "lucide-react";
+import GarmentMasterPreview from "./garment-master-preview";
 
 type Garment = "crewneck" | "ladies" | "polo" | "long-sleeve" | "hoodie" | "sweatshirt" | "vneck" | "tank";
 type Side = "front" | "back";
@@ -207,12 +208,12 @@ export default function DesignStudio() {
       <main className="design-stage design-stage-v2">
         <div className="stage-topline"><span>{garments.find(g=>g.id===garment)?.label.toUpperCase()}</span><span>{side.toUpperCase()} · {colour.toUpperCase()}</span></div>
         <div className={"garment-preview "+(backgroundMode==="transparent"?"transparent-stage":backgroundMode==="wood"?"wood-stage":"")} style={{background:backgroundMode==="solid"?backgroundColour:undefined}}>
-          <GarmentShape garment={garment} colour={colour} side={side}/>
+          {garment === "hoodie" && side === "back" ? <GarmentMasterPreview colour={colour}/> : <GarmentShape garment={garment} colour={colour} side={side}/>}
           <div className="canvas-wrap" style={{...ratioStyle,width:ratios[ratio][0],height:ratios[ratio][1]}}>
             <canvas ref={frontElement} style={{display:side==="front"?"block":"none"}}/>
             <canvas ref={backElement} style={{display:side==="back"?"block":"none"}}/>
           </div>
-          <div className="mockup-placeholder-tag">ILLUSTRATIVE GARMENT TEMPLATE</div>
+          <div className="mockup-placeholder-tag">{garment === "hoodie" && side === "back" ? "PHOTOGRAPHIC GARMENT MASTER · BACK" : "ILLUSTRATIVE GARMENT TEMPLATE"}</div>
         </div>
         <div className="stage-hint"><SlidersHorizontal size={14}/> Drag artwork to position · corner handles to resize · rotate with the top control</div>
       </main>
