@@ -94,7 +94,18 @@ export default function DesignStudio() {
       canvas.on("selection:created", () => { guide.set("visible", true); canvas.requestRenderAll(); syncSelection(); });
       canvas.on("selection:updated", () => { guide.set("visible", true); canvas.requestRenderAll(); syncSelection(); });
       canvas.on("selection:cleared", () => { guide.set("visible", false); canvas.requestRenderAll(); syncSelection(); });
-      canvas.on("mouse:down", (event) => { if (!event.target) { canvas.discardActiveObject(); guide.set("visible", false); canvas.requestRenderAll(); syncSelection(); } });
+      canvas.on("mouse:down", (event) => {
+        if (event.target && event.target !== guide) {
+          event.target.set({ selectable:true, evented:true, lockMovementX:false, lockMovementY:false });
+          canvas.setActiveObject(event.target);
+          guide.set("visible", true);
+        } else {
+          canvas.discardActiveObject();
+          guide.set("visible", false);
+        }
+        canvas.requestRenderAll();
+        syncSelection();
+      });
       canvas.on("object:moving", syncSelection);
       canvas.on("object:scaling", syncSelection);
       canvas.on("object:rotating", syncSelection);
@@ -134,7 +145,7 @@ export default function DesignStudio() {
   const addText = () => {
     const canvas=currentCanvas(); if(!canvas) return;
     const [w,h]=ratios[ratio];
-    const object=new IText(textValue.trim() || "YOUR TEXT",{left:w/2,top:h*.44,originX:"center",originY:"center",fontFamily:"Arial",fontSize:24,fontWeight:"bold",fill:"#24221f",textAlign:"center",cornerColor:"#a66c4b",borderColor:"#a66c4b",transparentCorners:false});
+    const object=new IText(textValue.trim() || "YOUR TEXT",{left:w/2,top:h*.44,originX:"center",originY:"center",fontFamily:"Arial",fontSize:24,fontWeight:"bold",fill:"#24221f",textAlign:"center",selectable:true,evented:true,lockMovementX:false,lockMovementY:false,hasControls:true,hasBorders:true,cornerColor:"#a66c4b",borderColor:"#a66c4b",transparentCorners:false});
     (object as any).__baseScaleX=1; (object as any).__baseScaleY=1; (object as any).__designScalePercent=100;
     canvas.add(object); canvas.setActiveObject(object); canvas.renderAll(); setStatus("Text added. Drag, resize or rotate it on the canvas.");
   };
@@ -146,7 +157,7 @@ export default function DesignStudio() {
     reader.onload=async()=>{if(typeof reader.result!=="string")return;try{
       const image=await FabricImage.fromURL(reader.result); const max=Math.min(130,ratios[ratio][0]*.44);
       const scale=Math.min(max/(image.width||max),max/(image.height||max),1);
-      image.set({left:ratios[ratio][0]/2,top:ratios[ratio][1]*.44,originX:"center",originY:"center",scaleX:scale,scaleY:scale,cornerColor:"#a66c4b",borderColor:"#a66c4b",transparentCorners:false});
+      image.set({left:ratios[ratio][0]/2,top:ratios[ratio][1]*.44,originX:"center",originY:"center",scaleX:scale,scaleY:scale,selectable:true,evented:true,lockMovementX:false,lockMovementY:false,hasControls:true,hasBorders:true,cornerColor:"#a66c4b",borderColor:"#a66c4b",transparentCorners:false});
       (image as any).__baseScaleX=scale; (image as any).__baseScaleY=scale; (image as any).__designScalePercent=100;
       canvas.add(image);canvas.setActiveObject(image);canvas.renderAll();setStatus("Artwork uploaded. Position it inside the print guide.");
     }catch{setStatus("That image could not be opened. Try another file.");}};
@@ -214,7 +225,7 @@ export default function DesignStudio() {
       </aside>
       <main className="design-stage design-stage-v2">
         <div className="stage-topline"><span>{garments.find(g=>g.id===garment)?.label.toUpperCase()}</span><span>{side.toUpperCase()} · {colour.toUpperCase()}</span></div>
-        <div className={"garment-preview "+(backgroundMode==="transparent"?"transparent-stage":backgroundMode==="wood"?"wood-stage":"")} style={{background:backgroundMode==="solid"?backgroundColour:undefined}} onPointerDown={(event)=>{if(!(event.target as HTMLElement).closest(".canvas-container")){const active=currentCanvas();active?.discardActiveObject();const guide=active?.getObjects().find(object=>object.get("name")==="print-area-guide");guide?.set("visible",false);active?.requestRenderAll();setOpacity(100);setActiveScale(100);setActiveRotation(0);}}}>
+        <div className={"garment-preview "+(backgroundMode==="transparent"?"transparent-stage":backgroundMode==="wood"?"wood-stage":"")} style={{background:backgroundMode==="solid"?backgroundColour:undefined}}>
           {(garment === "hoodie" || garment === "crewneck") ? <GarmentMasterPreview colour={colour} garment={garment} side={side} fallback={<GarmentShape garment={garment} colour={colour} side={side}/>} /> : <GarmentShape garment={garment} colour={colour} side={side}/>}
           <div className="garment-artwork-overlay">
             <div className="canvas-wrap" style={{...ratioStyle,width:ratios[ratio][0],height:ratios[ratio][1]}}>
