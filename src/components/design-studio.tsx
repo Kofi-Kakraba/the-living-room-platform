@@ -70,12 +70,20 @@ export default function DesignStudio() {
   const [props, setProps] = useState<string[]>([]);
   const [activeScale, setActiveScale] = useState(100);
   const [activeRotation, setActiveRotation] = useState(0);
+  const sideRef = useRef<Side>("front");
+  sideRef.current = side;
 
   useEffect(() => {
     const [w,h] = ratios[ratio];
     const syncSelection = () => {
-      const active = canvases.current.front?.getActiveObject() ?? canvases.current.back?.getActiveObject();
-      if (active) { setOpacity(Math.round((active.opacity ?? 1)*100)); setActiveScale(Math.round((active.scaleX ?? 1)*100)); setActiveRotation(Math.round(active.angle ?? 0)); }
+      const active = canvases.current[sideRef.current]?.getActiveObject();
+      if (active) {
+        setOpacity(Math.round((active.opacity ?? 1)*100));
+        setActiveScale(Math.round((active.scaleX ?? 1)*100));
+        setActiveRotation(Math.round(active.angle ?? 0));
+      } else {
+        setOpacity(100); setActiveScale(100); setActiveRotation(0);
+      }
     };
     const setup = (element: HTMLCanvasElement | null, view: Side) => {
       if (!element) return;
@@ -104,6 +112,17 @@ export default function DesignStudio() {
       canvas.renderAll();
     });
   }, [ratio]);
+
+  useEffect(() => {
+    const active = canvases.current[side]?.getActiveObject();
+    if (active) {
+      setOpacity(Math.round((active.opacity ?? 1)*100));
+      setActiveScale(Math.round((active.scaleX ?? 1)*100));
+      setActiveRotation(Math.round(active.angle ?? 0));
+    } else {
+      setOpacity(100); setActiveScale(100); setActiveRotation(0);
+    }
+  }, [side]);
 
   const currentCanvas = () => canvases.current[side];
   const addText = () => {
@@ -135,9 +154,19 @@ export default function DesignStudio() {
   };
   const exportPreview=()=>{
     const c=currentCanvas();if(!c)return;
-    const multiplier=quality==="2x"?2:1;
-    const link=document.createElement("a");link.href=c.toDataURL({format:"png",multiplier});link.download=(designName.toLowerCase().replace(/[^a-z0-9]+/g,"-")||"tlr-design")+"-"+side+"-"+(quality==="2x"?"2000px":"1000px")+".png";link.click();
-    setStatus("PNG preview exported. Placeholder garment art is not a print-ready production file.");
+    const targetLongEdge=quality==="2x"?2000:1000;
+    const multiplier=targetLongEdge/Math.max(c.getWidth(),c.getHeight());
+    const guide=c.getObjects().find(object=>object.get("name")==="print-area-guide");
+    if(guide) guide.set("visible",false);
+    c.renderAll();
+    const dataUrl=c.toDataURL({format:"png",multiplier});
+    if(guide) guide.set("visible",true);
+    c.renderAll();
+    const link=document.createElement("a");
+    link.href=dataUrl;
+    link.download=(designName.toLowerCase().replace(/[^a-z0-9]+/g,"-")||"tlr-design")+"-"+side+"-artwork-"+targetLongEdge+"px.png";
+    link.click();
+    setStatus("Transparent artwork PNG exported. This is artwork only, not a garment mockup or print-ready production file.");
   };
   const clearDesign=()=>{const c=currentCanvas();if(!c)return;const guide=c.getObjects().find(o=>o.get("name")==="print-area-guide");c.clear();if(guide)c.add(guide);c.renderAll();setStatus("Current side cleared.");};
   const chooseColour=(hex:string)=>{setColour(hex);setCustomHex(hex);};
