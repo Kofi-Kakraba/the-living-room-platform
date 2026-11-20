@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Canvas, FabricImage, IText, Line } from "fabric";
-import { ArrowDownToLine, ImagePlus, RotateCcw, RotateCw, Trash2, Type, Layers3, Shirt, Layout, Sparkles, SlidersHorizontal } from "lucide-react";
+import { ArrowDownToLine, ImagePlus, RotateCcw, RotateCw, Trash2, Type, Layers3, Shirt, Layout, Sparkles, SlidersHorizontal, ZoomIn, ZoomOut } from "lucide-react";
 import GarmentMasterPreview from "./garment-master-preview";
 
 type Garment = "crewneck" | "ladies" | "polo" | "long-sleeve" | "hoodie" | "sweatshirt" | "vneck" | "tank";
@@ -24,7 +24,7 @@ const palette = [
 ];
 const ratios: Record<Ratio, [number, number]> = { "1:1": [300,300], "4:3": [300,225], "4:5": [240,300], "9:16": [169,300] };
 
-function GarmentShape({ garment, colour, side }: { garment: Garment; colour: string; side: Side }) {
+function GarmentShape({ garment, colour, side, style }: { garment: Garment; colour: string; side: Side; style?: React.CSSProperties }) {
   const isHood = garment === "hoodie";
   const isTank = garment === "tank";
   const isLong = garment === "long-sleeve";
@@ -34,7 +34,7 @@ function GarmentShape({ garment, colour, side }: { garment: Garment; colour: str
     : isTank ? "M165 82 L195 82 Q220 112 245 82 L275 82 L340 150 L300 195 L285 170 L300 430 L140 430 L155 170 L140 195 L100 150 Z"
     : isLong ? "M145 75 L185 48 Q220 86 255 48 L295 75 L410 150 L365 230 L305 195 L315 430 L125 430 L135 195 L75 230 L30 150 Z"
     : "M145 75 L185 48 Q220 86 255 48 L295 75 L390 145 L350 220 L302 190 L315 430 L125 430 L138 190 L90 220 L50 145 Z";
-  return <svg className="garment-svg" viewBox="0 0 440 470" aria-hidden="true">
+  return <svg className="garment-svg" viewBox="0 0 440 470" aria-hidden="true" style={style}>
     <defs><linearGradient id="fabricLight" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stopColor="#ffffff" stopOpacity=".26"/><stop offset=".48" stopColor="#ffffff" stopOpacity="0"/><stop offset="1" stopColor="#000000" stopOpacity=".13"/></linearGradient></defs>
     <path d={outline} fill={colour} stroke="rgba(35,31,27,.25)" strokeWidth="3" strokeLinejoin="round"/>
     <path d={outline} fill="url(#fabricLight)"/>
@@ -73,6 +73,7 @@ export default function DesignStudio() {
   const [props, setProps] = useState<string[]>([]);
   const [activeScale, setActiveScale] = useState(100);
   const [activeRotation, setActiveRotation] = useState(0);
+  const [garmentZoom, setGarmentZoom] = useState(100);
   const sideRef = useRef<Side>("front");
   sideRef.current = side;
 
@@ -298,9 +299,9 @@ export default function DesignStudio() {
         <button className="export-button" onClick={exportMockup}><ArrowDownToLine size={16}/> Download garment mockup</button><button className="tool-button" onClick={exportArtwork}><ImagePlus size={15}/> Download artwork only</button><button className="clear-button" onClick={clearDesign}><RotateCcw size={14}/> Clear {side} design</button>
       </aside>
       <main className="design-stage design-stage-v2">
-        <div className="stage-topline"><span>{garments.find(g=>g.id===garment)?.label.toUpperCase()}</span><span>{side.toUpperCase()} · {colour.toUpperCase()}</span></div>
+        <div className="stage-topline"><span>{garments.find(g=>g.id===garment)?.label.toUpperCase()}</span><div className="stage-tools"><span>{side.toUpperCase()} · {colour.toUpperCase()}</span><div className="garment-zoom-controls" aria-label="Garment zoom controls"><button type="button" aria-label="Zoom out" title="Zoom out" onClick={()=>setGarmentZoom(value=>Math.max(70,value-10))} disabled={garmentZoom<=70}><ZoomOut size={13}/></button><span>{garmentZoom}%</span><button type="button" aria-label="Zoom in" title="Zoom in" onClick={()=>setGarmentZoom(value=>Math.min(150,value+10))} disabled={garmentZoom>=150}><ZoomIn size={13}/></button><button type="button" onClick={()=>setGarmentZoom(100)} disabled={garmentZoom===100}>Reset</button></div></div></div>
         <div ref={previewElement} className={"garment-preview "+(backgroundMode==="transparent"?"transparent-stage":backgroundMode==="wood"?"wood-stage":"")} style={{background:backgroundMode==="solid"?backgroundColour:undefined}} onPointerDown={(event)=>{if(!(event.target as HTMLElement).closest(".upper-canvas")){const active=currentCanvas();active?.discardActiveObject();active?.getObjects().filter(object=>String(object.get("name")||"").startsWith("alignment-guide-")).forEach(object=>object.set("visible",false));active?.requestRenderAll();setOpacity(100);setActiveScale(100);setActiveRotation(0);}}}>
-          {(garment === "hoodie" || garment === "crewneck") ? <GarmentMasterPreview colour={colour} garment={garment} side={side} fallback={<GarmentShape garment={garment} colour={colour} side={side}/>} /> : <GarmentShape garment={garment} colour={colour} side={side}/>}
+          {(garment === "hoodie" || garment === "crewneck") ? <GarmentMasterPreview colour={colour} garment={garment} side={side} zoom={garmentZoom} fallback={<GarmentShape garment={garment} colour={colour} side={side} style={{ transform: `scale(${garmentZoom / 100})` }}/>} /> : <GarmentShape garment={garment} colour={colour} side={side}/>}
           <div className="garment-artwork-overlay">
             <div className="canvas-wrap" style={{...ratioStyle,display:side==="front"?"block":"none"}}><canvas ref={frontElement}/></div>
             <div className="canvas-wrap" style={{...ratioStyle,display:side==="back"?"block":"none"}}><canvas ref={backElement}/></div>
