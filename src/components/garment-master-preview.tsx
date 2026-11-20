@@ -42,7 +42,7 @@ function hexToRgb(hex: string): [number, number, number] | null {
  * alpha cut-out, folds and seams. Exact black/white masters are preferred
  * for those colours; this renderer is a visual preview, not a colour proof.
  */
-export default function GarmentMasterPreview({ colour, garment = "hoodie", side = "back", fallback }: { colour: string; garment?: GarmentMaster; side?: GarmentSide; fallback?: ReactNode }) {
+export default function GarmentMasterPreview({ colour, garment = "hoodie", side = "back", fallback, zoom = 100 }: { colour: string; garment?: GarmentMaster; side?: GarmentSide; fallback?: ReactNode; zoom?: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [message, setMessage] = useState("Loading garment master…");
   const [assetFailed, setAssetFailed] = useState(false);
@@ -54,8 +54,8 @@ export default function GarmentMasterPreview({ colour, garment = "hoodie", side 
     if (!canvas || !target) return;
 
     const isWhite = colour.toLowerCase() === "#f5f3ed";
-    const isBlack = colour.toLowerCase() === "#292929";
-    const source = isBlack ? MASTER_IMAGES[garment][side].black : MASTER_IMAGES[garment][side].white;
+    // Use one white master for every fabric colour so framing and garment scale never jump.
+    const source = MASTER_IMAGES[garment][side].white;
     setAssetFailed(false);
     setMessage("Loading garment master…");
     const cacheKey = source + ":" + colour.toLowerCase();
@@ -93,7 +93,7 @@ export default function GarmentMasterPreview({ colour, garment = "hoodie", side 
       }
       context.clearRect(0, 0, canvas.width, canvas.height);
       context.drawImage(master, 0, 0);
-      if (!isWhite && !isBlack) {
+      if (!isWhite) {
         try {
           const frame = context.getImageData(0, 0, canvas.width, canvas.height);
           const pixels = frame.data;
@@ -129,7 +129,7 @@ export default function GarmentMasterPreview({ colour, garment = "hoodie", side 
   }, [colour, garment, side]);
 
   return (
-    <div className="garment-master-frame">
+    <div className="garment-master-frame" style={{ transform: `scale(${zoom / 100})` }}>
       <canvas ref={canvasRef} className="garment-master-render" aria-label={`Photographic ${garment} ${side} preview`} style={{ display: assetFailed ? "none" : "block" }} />
       {assetFailed ? fallback : null}
       {message && <span className="garment-master-message">{message}</span>}
