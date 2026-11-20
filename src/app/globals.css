@@ -256,3 +256,15 @@ img{display:block;max-width:100%}
  .editor-workspace .editor-tabs button{padding:8px 12px}
  .editor-workspace .studio-bottom{padding:7px 12px}
 }
+
+
+/* Consistent garment framing and in-stage zoom controls */
+.garment-master-frame{transition:transform .18s ease-out;transform-origin:center center}
+.garment-svg{transition:transform .18s ease-out;transform-origin:center center}
+.stage-tools{display:flex;align-items:center;gap:16px}
+.garment-zoom-controls{display:flex;align-items:center;gap:6px;padding:3px 5px;border:1px solid #dedbd5;border-radius:4px;background:#fff;color:#545962;font-size:9px;letter-spacing:0}
+.garment-zoom-controls button{display:grid;place-items:center;min-width:23px;height:22px;padding:0 5px;border:0;border-radius:3px;background:#f5f3ef;color:#353941;font-size:9px;cursor:pointer}
+.garment-zoom-controls button:hover:not(:disabled){background:#ffede6;color:#d45131}
+.garment-zoom-controls button:disabled{opacity:.35;cursor:not-allowed}
+.garment-zoom-controls span{min-width:32px;text-align:center;font-variant-numeric:tabular-nums}
+@media(max-width:520px){.stage-tools{gap:7px;flex-wrap:wrap;justify-content:flex-end}.garment-zoom-controls{gap:3px}}
