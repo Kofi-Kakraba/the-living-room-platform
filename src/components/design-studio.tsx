@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Canvas, FabricImage, IText, Line } from "fabric";
 import { ArrowDownToLine, ImagePlus, RotateCcw, RotateCw, Trash2, Type, Layers3, Shirt, Layout, Sparkles, SlidersHorizontal, ZoomIn, ZoomOut } from "lucide-react";
 import GarmentMasterPreview from "./garment-master-preview";
@@ -24,7 +24,7 @@ const palette = [
 ];
 const ratios: Record<Ratio, [number, number]> = { "1:1": [300,300], "4:3": [300,225], "4:5": [240,300], "9:16": [169,300] };
 
-function GarmentShape({ garment, colour, side, style }: { garment: Garment; colour: string; side: Side; style?: React.CSSProperties }) {
+function GarmentShape({ garment, colour, side, style }: { garment: Garment; colour: string; side: Side; style?: CSSProperties }) {
   const isHood = garment === "hoodie";
   const isTank = garment === "tank";
   const isLong = garment === "long-sleeve";
