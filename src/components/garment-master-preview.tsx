@@ -128,8 +128,8 @@ export default function GarmentMasterPreview({ colour, garment = "hoodie", side 
     return () => { cancelled = true; };
   }, [colour, garment, side]);
 
-  return (
-    <div className="garment-master-frame" style={{ transform: `scale(${zoom / 100})` }}>
+  // The hoodie source is framed more tightly than the tee source.\n  // Normalise its baseline while keeping the zoom control relative to 100%.\n  const framingScale = garment === "hoodie" ? 0.82 : 1;\n\n  return (
+    <div className="garment-master-frame" style={{ transform: `scale(${(zoom / 100) * framingScale})` }}>
       <canvas ref={canvasRef} className="garment-master-render" aria-label={`Photographic ${garment} ${side} preview`} style={{ display: assetFailed ? "none" : "block" }} />
       {assetFailed ? fallback : null}
       {message && <span className="garment-master-message">{message}</span>}
