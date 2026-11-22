@@ -70,10 +70,13 @@ function hexToRgb(hex: string): [number, number, number] | null {
  * alpha cut-out, folds and seams. Exact black/white masters are preferred
  * for those colours; this renderer is a visual preview, not a colour proof.
  */
-export default function GarmentMasterPreview({ colour, garment = "hoodie", side = "back", fallback, zoom = 100 }: { colour: string; garment?: GarmentMaster; side?: GarmentSide; fallback?: ReactNode; zoom?: number }) {
+export default function GarmentMasterPreview({ colour, garment = "hoodie", side = "back", fallback, zoom = 100, fitScale = 1, onDimensions }: { colour: string; garment?: GarmentMaster; side?: GarmentSide; fallback?: ReactNode; zoom?: number; fitScale?: number; onDimensions?: (size: { width: number; height: number }) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [message, setMessage] = useState("Loading garment master…");
   const [assetFailed, setAssetFailed] = useState(false);
+  const [dimensions, setDimensions] = useState({ width: 440, height: 470 });
+  const fittedWidth = Math.max(1, Math.round(dimensions.width * fitScale));
+  const fittedHeight = Math.max(1, Math.round(dimensions.height * fitScale));
 
   useEffect(() => {
     let cancelled = false;
@@ -95,6 +98,8 @@ export default function GarmentMasterPreview({ colour, garment = "hoodie", side 
         if (cancelled) return;
         canvas.width = output.naturalWidth;
         canvas.height = output.naturalHeight;
+        setDimensions({ width: output.naturalWidth, height: output.naturalHeight });
+        onDimensions?.({ width: output.naturalWidth, height: output.naturalHeight });
         const context = canvas.getContext("2d");
         if (!context) return;
         context.drawImage(output, 0, 0);
@@ -145,6 +150,9 @@ export default function GarmentMasterPreview({ colour, garment = "hoodie", side 
         // Front and back source files have different transparent margins.
         // Crop to the visible pixels before fitting the image into the stage.
         trimToVisibleGarment(canvas);
+        const size = { width: canvas.width, height: canvas.height };
+        setDimensions(size);
+        onDimensions?.(size);
         const result = canvas.toDataURL("image/png");
         remember(cacheKey, result);
       } catch {
@@ -157,11 +165,11 @@ export default function GarmentMasterPreview({ colour, garment = "hoodie", side 
     };
     master.src = source;
     return () => { cancelled = true; };
-  }, [colour, garment, side]);
+  }, [colour, garment, side, onDimensions]);
 
   return (
-    <div className="garment-master-frame" style={{ transform: `scale(${zoom / 100})` }}>
-      <canvas ref={canvasRef} className="garment-master-render" aria-label={`Photographic ${garment} ${side} preview`} style={{ display: assetFailed ? "none" : "block" }} />
+    <div className="garment-master-frame" style={{ width: `${fittedWidth}px`, height: `${fittedHeight}px`, transform: `scale(${zoom / 100})` }}>
+      <canvas ref={canvasRef} className="garment-master-render" aria-label={`Photographic ${garment} ${side} preview`} style={{ width: `${fittedWidth}px`, height: `${fittedHeight}px`, display: assetFailed ? "none" : "block" }} />
       {assetFailed ? fallback : null}
       {message && <span className="garment-master-message">{message}</span>}
     </div>
