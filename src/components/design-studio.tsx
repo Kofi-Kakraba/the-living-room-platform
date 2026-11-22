@@ -51,6 +51,8 @@ function GarmentShape({ garment, colour, side, style }: { garment: Garment; colo
 
 export default function DesignStudio() {
   const previewElement = useRef<HTMLDivElement>(null);
+  const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
+  const [garmentSize, setGarmentSize] = useState({ width: 440, height: 470 });
   const frontElement = useRef<HTMLCanvasElement>(null);
   const backElement = useRef<HTMLCanvasElement>(null);
   const canvases = useRef<CanvasRecord>({ front: null, back: null });
@@ -76,6 +78,22 @@ export default function DesignStudio() {
   const [garmentZoom, setGarmentZoom] = useState(100);
   const sideRef = useRef<Side>("front");
   sideRef.current = side;
+
+  useEffect(() => {
+    const stage = previewElement.current;
+    if (!stage) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      setStageSize({ width, height });
+    });
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, []);
+
+  const fitScale = stageSize.width > 0 && stageSize.height > 0
+    ? Math.min(stageSize.width / garmentSize.width, stageSize.height / garmentSize.height) * 0.88
+    : 0;
+  const artworkScale = fitScale * garmentZoom / 100;
 
   useEffect(() => {
     const [w,h] = ratios[ratio];
@@ -301,8 +319,8 @@ export default function DesignStudio() {
       <main className="design-stage design-stage-v2">
         <div className="stage-topline"><span>{garments.find(g=>g.id===garment)?.label.toUpperCase()}</span><div className="stage-tools"><span>{side.toUpperCase()} · {colour.toUpperCase()}</span><div className="garment-zoom-controls" aria-label="Garment zoom controls"><button type="button" aria-label="Zoom out" title="Zoom out" onClick={()=>setGarmentZoom(value=>Math.max(70,value-10))} disabled={garmentZoom<=70}><ZoomOut size={13}/></button><span>{garmentZoom}%</span><button type="button" aria-label="Zoom in" title="Zoom in" onClick={()=>setGarmentZoom(value=>Math.min(150,value+10))} disabled={garmentZoom>=150}><ZoomIn size={13}/></button><button type="button" onClick={()=>setGarmentZoom(100)} disabled={garmentZoom===100}>Reset</button></div></div></div>
         <div ref={previewElement} className={"garment-preview "+(backgroundMode==="transparent"?"transparent-stage":backgroundMode==="wood"?"wood-stage":"")} style={{background:backgroundMode==="solid"?backgroundColour:undefined}} onPointerDown={(event)=>{if(!(event.target as HTMLElement).closest(".upper-canvas")){const active=currentCanvas();active?.discardActiveObject();active?.getObjects().filter(object=>String(object.get("name")||"").startsWith("alignment-guide-")).forEach(object=>object.set("visible",false));active?.requestRenderAll();setOpacity(100);setActiveScale(100);setActiveRotation(0);}}}>
-          {(garment === "hoodie" || garment === "crewneck") ? <GarmentMasterPreview colour={colour} garment={garment} side={side} zoom={garmentZoom} fallback={<GarmentShape garment={garment} colour={colour} side={side} style={{ transform: `scale(${garmentZoom / 100})` }}/>} /> : <GarmentShape garment={garment} colour={colour} side={side}/>}
-          <div className="garment-artwork-overlay">
+          {(garment === "hoodie" || garment === "crewneck") ? <GarmentMasterPreview colour={colour} garment={garment} side={side} zoom={garmentZoom} fitScale={fitScale} onDimensions={setGarmentSize} fallback={<GarmentShape garment={garment} colour={colour} side={side} style={{ width: `${Math.round(garmentSize.width * fitScale)}px`, height: `${Math.round(garmentSize.height * fitScale)}px`, transform: `scale(${garmentZoom / 100})` }}/>} /> : <GarmentShape garment={garment} colour={colour} side={side} style={{ width: `${Math.round(garmentSize.width * fitScale)}px`, height: `${Math.round(garmentSize.height * fitScale)}px`, transform: `scale(${garmentZoom / 100})` }}/>}
+          <div className="garment-artwork-overlay" style={{ transform: `scale(${artworkScale})`, transformOrigin: "center center" }}>
             <div className="canvas-wrap" style={{...ratioStyle,display:side==="front"?"block":"none"}}><canvas ref={frontElement}/></div>
             <div className="canvas-wrap" style={{...ratioStyle,display:side==="back"?"block":"none"}}><canvas ref={backElement}/></div>
           </div>
