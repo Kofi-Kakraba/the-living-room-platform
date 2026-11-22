@@ -231,7 +231,7 @@ img{display:block;max-width:100%}
 .editor-workspace .design-stage-v2{min-height:0;height:calc(100vh - 225px);max-height:760px;padding:16px 20px 12px}
 .editor-workspace .design-stage-v2 .garment-preview{min-height:0;flex:1}
 .editor-workspace .design-stage-v2 .garment-svg{max-height:100%;width:min(90%,560px)}
-.editor-workspace .garment-master-render{max-height:100%;width:min(94%,720px)}
+.editor-workspace .garment-master-render{display:block;width:auto;height:auto;max-width:min(94%,720px);max-height:100%;object-fit:contain}
 .editor-workspace .studio-bottom{padding:9px 15px}
 .editor-workspace-footnote{margin:8px 2px 0;text-align:right;color:#96989d;font-size:9px}
 .editor-workspace .export-button{border-radius:4px;background:#ef633d;box-shadow:0 5px 13px #ef633d2c}
