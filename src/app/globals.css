@@ -173,8 +173,9 @@ img{display:block;max-width:100%}
 
 
 /* Photographic garment master preview and pixel-preserving fabric recolouring */
-.garment-master-frame{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}
-.garment-master-render{width:min(94%,650px);height:100%;max-height:510px;object-fit:contain;filter:drop-shadow(0 17px 18px #1b1d221a)}
+.garment-master-frame{position:absolute;inset:18px 0;display:grid;place-items:center;pointer-events:none;overflow:visible}
+/* Keep the complete source photograph visible: constrain both dimensions while preserving its native aspect ratio. */
+.garment-master-render{display:block;width:auto;height:auto;max-width:min(94%,720px);max-height:calc(100% - 24px);object-fit:contain;filter:drop-shadow(0 17px 18px #1b1d221a)}
 .garment-master-message{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:80%;padding:9px 12px;background:#ffffffdc;color:#6f737a;font-size:10px;text-align:center;border:1px solid #e6e6e6}
 
 
