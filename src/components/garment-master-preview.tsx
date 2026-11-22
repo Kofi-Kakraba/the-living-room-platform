@@ -168,7 +168,7 @@ export default function GarmentMasterPreview({ colour, garment = "hoodie", side 
   }, [colour, garment, side, onDimensions]);
 
   return (
-    <div className="garment-master-frame" style={{ width: `${fittedWidth}px`, height: `${fittedHeight}px`, transform: `scale(${zoom / 100})` }}>
+    <div className="garment-master-frame" style={{ width: `${fittedWidth}px`, height: `${fittedHeight}px`, transform: `translate(-50%, -50%) scale(${zoom / 100})` }}>
       <canvas ref={canvasRef} className="garment-master-render" aria-label={`Photographic ${garment} ${side} preview`} style={{ width: `${fittedWidth}px`, height: `${fittedHeight}px`, display: assetFailed ? "none" : "block" }} />
       {assetFailed ? fallback : null}
       {message && <span className="garment-master-message">{message}</span>}
