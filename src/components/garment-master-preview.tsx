@@ -26,6 +26,34 @@ function remember(key: string, value: string) {
   }
 }
 
+function trimToVisibleGarment(canvas: HTMLCanvasElement) {
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context || !canvas.width || !canvas.height) return;
+  const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+  let left = canvas.width, top = canvas.height, right = -1, bottom = -1;
+  for (let y = 0; y < canvas.height; y++) {
+    for (let x = 0; x < canvas.width; x++) {
+      if (data[(y * canvas.width + x) * 4 + 3] > 10) {
+        if (x < left) left = x;
+        if (x > right) right = x;
+        if (y < top) top = y;
+        if (y > bottom) bottom = y;
+      }
+    }
+  }
+  if (right < left || bottom < top) return;
+  const padX = Math.round((right - left + 1) * 0.025);
+  const padY = Math.round((bottom - top + 1) * 0.025);
+  left = Math.max(0, left - padX); top = Math.max(0, top - padY);
+  right = Math.min(canvas.width - 1, right + padX); bottom = Math.min(canvas.height - 1, bottom + padY);
+  const width = right - left + 1, height = bottom - top + 1;
+  if (width === canvas.width && height === canvas.height) return;
+  const cropped = document.createElement("canvas"); cropped.width = width; cropped.height = height;
+  const croppedContext = cropped.getContext("2d"); if (!croppedContext) return;
+  croppedContext.drawImage(canvas, left, top, width, height, 0, 0, width, height);
+  canvas.width = width; canvas.height = height;
+  canvas.getContext("2d")?.drawImage(cropped, 0, 0);
+}
 function hexToRgb(hex: string): [number, number, number] | null {
   const match = /^#?([0-9a-f]{6})$/i.exec(hex);
   if (!match) return null;
@@ -114,6 +142,9 @@ export default function GarmentMasterPreview({ colour, garment = "hoodie", side 
         }
       }
       try {
+        // Front and back source files have different transparent margins.
+        // Crop to the visible pixels before fitting the image into the stage.
+        trimToVisibleGarment(canvas);
         const result = canvas.toDataURL("image/png");
         remember(cacheKey, result);
       } catch {
