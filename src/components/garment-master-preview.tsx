@@ -143,7 +143,7 @@ function recolour(frame: ImageData, target: [number, number, number], mode: "lig
   }
 }
 
-export default function GarmentMasterPreview({ colour, garment = "hoodie", side = "back", fallback, zoom = 100, fitScale = 1 }: { colour: string; garment?: GarmentMaster; side?: GarmentSide; fallback?: ReactNode; zoom?: number; fitScale?: number }) {
+export default function GarmentMasterPreview({ colour, garment = "hoodie", side = "back", fallback, zoom = 100, fitScale = 1, onDimensions }: { colour: string; garment?: GarmentMaster; side?: GarmentSide; fallback?: ReactNode; zoom?: number; fitScale?: number; onDimensions?: (dimensions: { width: number; height: number }) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [message, setMessage] = useState("Loading garment master…");
   const [assetFailed, setAssetFailed] = useState(false);
@@ -167,6 +167,7 @@ export default function GarmentMasterPreview({ colour, garment = "hoodie", side 
         canvas.width = output.naturalWidth;
         canvas.height = output.naturalHeight;
         canvas.getContext("2d")?.drawImage(output, 0, 0);
+        onDimensions?.({ width: canvas.width, height: canvas.height });
         setMessage("");
       };
       output.src = dataUrl;
@@ -205,6 +206,7 @@ export default function GarmentMasterPreview({ colour, garment = "hoodie", side 
           // Front/back and white/black files have different transparent margins,
           // so crop to the visible pixels before fitting into the stage.
           trimToVisibleGarment(canvas);
+          onDimensions?.({ width: canvas.width, height: canvas.height });
           remember(cacheKey, canvas.toDataURL("image/png"));
         } catch {
           // Keep the current canvas visible even if caching is unavailable.
@@ -221,7 +223,7 @@ export default function GarmentMasterPreview({ colour, garment = "hoodie", side 
 
     render(wantsDark);
     return () => { cancelled = true; };
-  }, [colour, garment, side]);
+  }, [colour, garment, side, onDimensions]);
 
   return (
     <div className="garment-master-frame" style={{ transform: `scale(${(zoom / 100) * fitScale})` }}>
