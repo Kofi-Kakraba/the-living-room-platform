@@ -120,8 +120,13 @@ function recolour(frame: ImageData, target: [number, number, number], mode: "lig
   for (let v = 0; v < 256; v++) {
     const s = Math.min(1, Math.max(0, (v / 255 - lo) / (hi - lo)));
     if (mode === "dark") {
-      shadeLut[v] = 0.42 + 0.95 * Math.pow(s, 0.9);
-      sheenLut[v] = (26 * (1 - targetLuma) + 6) * Math.pow(s, 2.2);
+      // The black master is a fabric-detail map: keep its shadows deep while
+      // opening the midtones and highlights enough to reveal folds and seams.
+      // A lower floor and a gentler curve retain more of the source contrast.
+      shadeLut[v] = 0.20 + 0.92 * Math.pow(s, 0.78);
+      // Add a restrained neutral lift only to the brightest fabric ridges.
+      // This keeps near-black swatches readable without washing out their hue.
+      sheenLut[v] = (10 * (1 - targetLuma) + 2) * Math.pow(s, 3.0);
     } else {
       shadeLut[v] = 0.55 + 0.45 * s;
       sheenLut[v] = 0;
