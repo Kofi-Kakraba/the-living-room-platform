@@ -15,6 +15,14 @@ const MASTER_IMAGES: Record<GarmentMaster, Record<GarmentSide, { white: string; 
     back: { white: "/garments/tshirt-white-back.png", black: "/garments/tshirt-black-back.png" },
   },
 };
+
+// Swatches that should show the photographed master exactly as shot.
+const WHITE_HEX = "#f5f3ed";
+const BLACK_HEX = "#1a1a1a";
+// Colours darker than this (perceived luminance 0-1) are built from the BLACK master,
+// because dark fabric is defined by highlights, not shadows.
+const DARK_LUMA = 0.33;
+
 const renderCache = new Map<string, string>();
 const MAX_CACHE_ENTRIES = 24;
 
@@ -24,6 +32,10 @@ function remember(key: string, value: string) {
     const oldest = renderCache.keys().next().value;
     if (oldest) renderCache.delete(oldest);
   }
+}
+
+function lumaOf(r: number, g: number, b: number) {
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
 }
 
 function trimToVisibleGarment(canvas: HTMLCanvasElement) {
@@ -54,6 +66,7 @@ function trimToVisibleGarment(canvas: HTMLCanvasElement) {
   canvas.width = width; canvas.height = height;
   canvas.getContext("2d")?.drawImage(cropped, 0, 0);
 }
+
 function hexToRgb(hex: string): [number, number, number] | null {
   const match = /^#?([0-9a-f]{6})$/i.exec(hex);
   if (!match) return null;
@@ -65,11 +78,66 @@ function hexToRgb(hex: string): [number, number, number] | null {
   ];
 }
 
+/** Darkest and brightest typical luminance (2nd / 98th percentile) of the garment pixels. */
+function shadingRange(pixels: Uint8ClampedArray): [number, number] {
+  const histogram = new Uint32Array(256);
+  let total = 0;
+  for (let i = 0; i < pixels.length; i += 4) {
+    if (pixels[i + 3] < 200) continue;
+    histogram[Math.round(lumaOf(pixels[i], pixels[i + 1], pixels[i + 2]) * 255)]++;
+    total++;
+  }
+  if (!total) return [0, 1];
+  const at = (quantile: number) => {
+    const goal = total * quantile;
+    let sum = 0;
+    for (let bin = 0; bin < 256; bin++) { sum += histogram[bin]; if (sum >= goal) return bin / 255; }
+    return 1;
+  };
+  const lo = at(0.02), hi = at(0.98);
+  return hi - lo < 0.02 ? [lo, lo + 0.02] : [lo, hi];
+}
+
 /**
- * Recolours a light garment master while retaining its pixel luminance,
- * alpha cut-out, folds and seams. Exact black/white masters are preferred
- * for those colours; this renderer is a visual preview, not a colour proof.
+ * Recolours a garment master while keeping its cut-out, folds and seams.
+ *
+ * Light/mid colours: WHITE master. Shading is stretched to its real range, then multiplied
+ * into the colour (brightest area = the exact swatch colour, folds = darker).
+ * Dark colours: BLACK master. Shading is multiplied in AND a soft neutral sheen is added on the
+ * highlights, which is what makes real black / navy / forest fabric read as fabric instead of
+ * a flat dark shape.
+ * This is still a screen preview, not a colour proof.
  */
+function recolour(frame: ImageData, target: [number, number, number], mode: "light" | "dark") {
+  const pixels = frame.data;
+  const [red, green, blue] = target;
+  const targetLuma = lumaOf(red, green, blue);
+  const [lo, hi] = shadingRange(pixels);
+
+  // Pre-compute shade + sheen for every possible source luminance (fast, no per-pixel pow).
+  const shadeLut = new Float32Array(256);
+  const sheenLut = new Float32Array(256);
+  for (let v = 0; v < 256; v++) {
+    const s = Math.min(1, Math.max(0, (v / 255 - lo) / (hi - lo)));
+    if (mode === "dark") {
+      shadeLut[v] = 0.42 + 0.95 * Math.pow(s, 0.9);
+      sheenLut[v] = (26 * (1 - targetLuma) + 6) * Math.pow(s, 2.2);
+    } else {
+      shadeLut[v] = 0.55 + 0.45 * s;
+      sheenLut[v] = 0;
+    }
+  }
+
+  for (let i = 0; i < pixels.length; i += 4) {
+    if (pixels[i + 3] === 0) continue;
+    const v = Math.round(lumaOf(pixels[i], pixels[i + 1], pixels[i + 2]) * 255);
+    const shade = shadeLut[v], sheen = sheenLut[v];
+    pixels[i] = Math.min(255, red * shade + sheen);
+    pixels[i + 1] = Math.min(255, green * shade + sheen);
+    pixels[i + 2] = Math.min(255, blue * shade + sheen);
+  }
+}
+
 export default function GarmentMasterPreview({ colour, garment = "hoodie", side = "back", fallback, zoom = 100 }: { colour: string; garment?: GarmentMaster; side?: GarmentSide; fallback?: ReactNode; zoom?: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [message, setMessage] = useState("Loading garment master…");
@@ -81,13 +149,11 @@ export default function GarmentMasterPreview({ colour, garment = "hoodie", side 
     const target = hexToRgb(colour);
     if (!canvas || !target) return;
 
-    const isWhite = colour.toLowerCase() === "#f5f3ed";
-    // Use one white master for every fabric colour so framing and garment scale never jump.
-    const source = MASTER_IMAGES[garment][side].white;
+    const hex = colour.toLowerCase();
+    const wantsDark = lumaOf(...target) < DARK_LUMA;
+    const masters = MASTER_IMAGES[garment][side];
     setAssetFailed(false);
     setMessage("Loading garment master…");
-    const cacheKey = source + ":" + colour.toLowerCase();
-    const cached = renderCache.get(cacheKey);
 
     const drawCached = (dataUrl: string) => {
       const output = new Image();
@@ -95,67 +161,59 @@ export default function GarmentMasterPreview({ colour, garment = "hoodie", side 
         if (cancelled) return;
         canvas.width = output.naturalWidth;
         canvas.height = output.naturalHeight;
-        const context = canvas.getContext("2d");
-        if (!context) return;
-        context.drawImage(output, 0, 0);
+        canvas.getContext("2d")?.drawImage(output, 0, 0);
         setMessage("");
       };
       output.src = dataUrl;
     };
 
-    if (cached) {
-      drawCached(cached);
-      return () => { cancelled = true; };
-    }
+    const render = (useBlack: boolean) => {
+      const source = useBlack ? masters.black : masters.white;
+      const cacheKey = source + ":" + hex;
+      const cached = renderCache.get(cacheKey);
+      if (cached) { drawCached(cached); return; }
 
-    const master = new Image();
-    master.decoding = "async";
-    master.onload = () => {
-      if (cancelled) return;
-      canvas.width = master.naturalWidth;
-      canvas.height = master.naturalHeight;
-      const context = canvas.getContext("2d", { willReadFrequently: true });
-      if (!context) {
-        setMessage("Your browser could not initialise the garment renderer.");
-        return;
-      }
-      context.clearRect(0, 0, canvas.width, canvas.height);
-      context.drawImage(master, 0, 0);
-      if (!isWhite) {
-        try {
-          const frame = context.getImageData(0, 0, canvas.width, canvas.height);
-          const pixels = frame.data;
-          const [red, green, blue] = target;
-          const targetLuma = (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255;
-          for (let i = 0; i < pixels.length; i += 4) {
-            if (pixels[i + 3] === 0) continue;
-            const luminance = (0.2126 * pixels[i] + 0.7152 * pixels[i + 1] + 0.0722 * pixels[i + 2]) / 255;
-            const fabricShade = 0.28 + 0.72 * luminance;
-            const neutralHighlight = 14 * luminance * (1 - targetLuma);
-            pixels[i] = Math.min(255, red * fabricShade + neutralHighlight);
-            pixels[i + 1] = Math.min(255, green * fabricShade + neutralHighlight);
-            pixels[i + 2] = Math.min(255, blue * fabricShade + neutralHighlight);
+      const master = new Image();
+      master.decoding = "async";
+      master.onload = () => {
+        if (cancelled) return;
+        canvas.width = master.naturalWidth;
+        canvas.height = master.naturalHeight;
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        if (!context) { setMessage("Your browser could not initialise the garment renderer."); return; }
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(master, 0, 0);
+
+        // The two swatches that match a photographed master are shown untouched.
+        const untouched = (!useBlack && hex === WHITE_HEX) || (useBlack && hex === BLACK_HEX);
+        if (!untouched) {
+          try {
+            const frame = context.getImageData(0, 0, canvas.width, canvas.height);
+            recolour(frame, target, useBlack ? "dark" : "light");
+            context.putImageData(frame, 0, 0);
+          } catch {
+            setMessage("Colour rendering failed; showing the original garment.");
           }
-          context.putImageData(frame, 0, 0);
-        } catch {
-          setMessage("Colour rendering failed; showing the original garment.");
         }
-      }
-      try {
-        // Front and back source files have different transparent margins.
-        // Crop to the visible pixels before fitting the image into the stage.
-        trimToVisibleGarment(canvas);
-        const result = canvas.toDataURL("image/png");
-        remember(cacheKey, result);
-      } catch {
-        // Keep the current canvas visible even if browser caching is unavailable.
-      }
-      setMessage("");
+        try {
+          // Front/back and white/black files have different transparent margins,
+          // so crop to the visible pixels before fitting into the stage.
+          trimToVisibleGarment(canvas);
+          remember(cacheKey, canvas.toDataURL("image/png"));
+        } catch {
+          // Keep the current canvas visible even if caching is unavailable.
+        }
+        setMessage("");
+      };
+      master.onerror = () => {
+        if (cancelled) return;
+        if (useBlack) render(false); // black master missing: fall back to the white master
+        else { setAssetFailed(true); setMessage(""); }
+      };
+      master.src = source;
     };
-    master.onerror = () => {
-      if (!cancelled) { setAssetFailed(true); setMessage(""); }
-    };
-    master.src = source;
+
+    render(wantsDark);
     return () => { cancelled = true; };
   }, [colour, garment, side]);
 
