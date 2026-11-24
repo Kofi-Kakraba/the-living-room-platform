@@ -6,16 +6,25 @@ import { ArrowDownToLine, ImagePlus, RotateCcw, RotateCw, Trash2, Type, Layers3,
 import GarmentMasterPreview from "./garment-master-preview";
 
 type Garment = "crewneck" | "ladies" | "polo" | "long-sleeve" | "hoodie" | "sweatshirt" | "vneck" | "tank";
+type Collection = "men" | "women";
 type Side = "front" | "back";
 type Tab = "design" | "garment" | "canvas" | "props";
 type Ratio = "1:1" | "4:3" | "4:5" | "9:16";
 type CanvasRecord = { front: Canvas | null; back: Canvas | null };
-const garments: { id: Garment; label: string }[] = [
-  { id: "crewneck", label: "Crewneck tee" }, { id: "ladies", label: "Ladies tee" },
-  { id: "polo", label: "Polo collar" }, { id: "long-sleeve", label: "Long sleeve" },
-  { id: "hoodie", label: "Hoodie" }, { id: "sweatshirt", label: "Sweatshirt" },
-  { id: "vneck", label: "V-neck" }, { id: "tank", label: "Tank top" }
-];
+const garmentsByCollection: Record<Collection, { id: Garment; label: string }[]> = {
+  men: [
+    { id: "crewneck", label: "Crewneck tee" }, { id: "polo", label: "Polo shirt" },
+    { id: "long-sleeve", label: "Long sleeve" }, { id: "hoodie", label: "Hoodie" },
+    { id: "sweatshirt", label: "Sweatshirt" }, { id: "vneck", label: "V-neck" },
+    { id: "tank", label: "Tank top" }
+  ],
+  women: [
+    { id: "ladies", label: "Fitted ladies tee" }, { id: "polo", label: "Women's polo" },
+    { id: "long-sleeve", label: "Women's long sleeve" }, { id: "hoodie", label: "Women's hoodie" },
+    { id: "sweatshirt", label: "Women's sweatshirt" }, { id: "vneck", label: "Women's V-neck" },
+    { id: "tank", label: "Women's tank top" }
+  ]
+};
 const palette = [
   { name: "White", hex: "#f5f3ed" }, { name: "Natural", hex: "#e8ddc9" },
   { name: "Black", hex: "#292929" }, { name: "Heather grey", hex: "#aaa9a5" },
@@ -57,6 +66,7 @@ export default function DesignStudio() {
   const backElement = useRef<HTMLCanvasElement>(null);
   const canvases = useRef<CanvasRecord>({ front: null, back: null });
   const [tab, setTab] = useState<Tab>("design");
+  const [collection, setCollection] = useState<Collection>("men");
   const [garment, setGarment] = useState<Garment>("crewneck");
   const [side, setSide] = useState<Side>("front");
   const [colour, setColour] = useState("#f5f3ed");
@@ -282,6 +292,12 @@ export default function DesignStudio() {
   };
   const clearDesign=()=>{const c=currentCanvas();if(!c)return;const guides=c.getObjects().filter(o=>String(o.get("name")||"").startsWith("alignment-guide-"));c.clear();c.add(...guides);guides.forEach(o=>o.set("visible",false));c.renderAll();setStatus("Current side cleared.");};
   const chooseColour=(hex:string)=>{setColour(hex);setCustomHex(hex);};
+  const visibleGarments = garmentsByCollection[collection];
+  const changeCollection = (next: Collection) => {
+    setCollection(next);
+    const nextGarments = garmentsByCollection[next];
+    if (!nextGarments.some(item => item.id === garment)) setGarment(nextGarments[0].id);
+  };
   const tabItems: {id:Tab;label:string;icon:typeof Layers3}[]=[{id:"design",label:"Design",icon:Layers3},{id:"garment",label:"Garment",icon:Shirt},{id:"canvas",label:"Canvas",icon:Layout},{id:"props",label:"Props",icon:Sparkles}];
   const ratioStyle={aspectRatio:ratio.replace(":"," / ")};
   return <div className="studio-card studio-v2">
@@ -298,7 +314,8 @@ export default function DesignStudio() {
           <div className="control-group"><button className="tool-button" onClick={()=>{const c=currentCanvas(),a=c?.getActiveObject();if(c&&a){a.rotate((a.angle||0)+15);c.renderAll();setActiveRotation(Math.round(a.angle||0));}}}><RotateCw size={15}/> Rotate +15°</button><button className="tool-button danger-tool" onClick={removeSelected}><Trash2 size={15}/> Delete selected</button></div>
         </>}
         {tab==="garment" && <>
-          <span className="control-label">CHOOSE GARMENT</span><div className="garment-choice-grid">{garments.map(g=><button key={g.id} className={garment===g.id?"selected":""} onClick={()=>setGarment(g.id)}>{g.label}</button>)}</div>
+          <span className="control-label">CHOOSE COLLECTION</span><div className="segmented"><button className={collection==="men"?"active":""} onClick={()=>changeCollection("men")}>Men</button><button className={collection==="women"?"active":""} onClick={()=>changeCollection("women")}>Women</button></div>
+          <span className="control-label">CHOOSE GARMENT</span><div className="garment-choice-grid">{visibleGarments.map(g=><button key={g.id} className={garment===g.id?"selected":""} onClick={()=>setGarment(g.id)}>{g.label}</button>)}</div>
           <div className="control-group"><span className="control-label">FABRIC COLOUR</span><div className="colour-grid">{palette.map(c=><button key={c.hex} className={colour===c.hex?"selected":""} onClick={()=>chooseColour(c.hex)}><i style={{background:c.hex}}/><span>{c.name}</span></button>)}</div></div>
           <div className="control-group"><label className="control-label" htmlFor="custom-colour">CUSTOM COLOUR · HEX</label><div className="hex-input-row"><input type="color" value={/^#[0-9a-fA-F]{6}$/.test(customHex)?customHex:"#ffffff"} onChange={e=>chooseColour(e.target.value)}/><input id="custom-colour" className="text-input" value={customHex} onChange={e=>{setCustomHex(e.target.value);if(/^#[0-9a-fA-F]{6}$/.test(e.target.value))setColour(e.target.value);}} onBlur={()=>{if(!/^#[0-9a-fA-F]{6}$/.test(customHex)){setCustomHex(colour);setStatus("Enter a valid six-digit HEX colour.");}}}/></div></div>
           <p className="editor-note">Colour controls are illustrative until approved garment master images and colour masks are connected. Screen colour is not a guarantee of fabric colour.</p>
@@ -317,7 +334,7 @@ export default function DesignStudio() {
         <button className="export-button" onClick={exportMockup}><ArrowDownToLine size={16}/> Download garment mockup</button><button className="tool-button" onClick={exportArtwork}><ImagePlus size={15}/> Download artwork only</button><button className="clear-button" onClick={clearDesign}><RotateCcw size={14}/> Clear {side} design</button>
       </aside>
       <main className="design-stage design-stage-v2">
-        <div className="stage-topline"><span>{garments.find(g=>g.id===garment)?.label.toUpperCase()}</span><div className="stage-tools"><span>{side.toUpperCase()} · {colour.toUpperCase()}</span><div className="garment-zoom-controls" aria-label="Garment zoom controls"><button type="button" aria-label="Zoom out" title="Zoom out" onClick={()=>setGarmentZoom(value=>Math.max(70,value-10))} disabled={garmentZoom<=70}><ZoomOut size={13}/></button><span>{garmentZoom}%</span><button type="button" aria-label="Zoom in" title="Zoom in" onClick={()=>setGarmentZoom(value=>Math.min(150,value+10))} disabled={garmentZoom>=150}><ZoomIn size={13}/></button><button type="button" onClick={()=>setGarmentZoom(100)} disabled={garmentZoom===100}>Reset</button></div></div></div>
+        <div className="stage-topline"><span>{visibleGarments.find(g=>g.id===garment)?.label.toUpperCase()}</span><div className="stage-tools"><span>{side.toUpperCase()} · {colour.toUpperCase()}</span><div className="garment-zoom-controls" aria-label="Garment zoom controls"><button type="button" aria-label="Zoom out" title="Zoom out" onClick={()=>setGarmentZoom(value=>Math.max(70,value-10))} disabled={garmentZoom<=70}><ZoomOut size={13}/></button><span>{garmentZoom}%</span><button type="button" aria-label="Zoom in" title="Zoom in" onClick={()=>setGarmentZoom(value=>Math.min(150,value+10))} disabled={garmentZoom>=150}><ZoomIn size={13}/></button><button type="button" onClick={()=>setGarmentZoom(100)} disabled={garmentZoom===100}>Reset</button></div></div></div>
         <div ref={previewElement} className={"garment-preview "+(backgroundMode==="transparent"?"transparent-stage":backgroundMode==="wood"?"wood-stage":"")} style={{background:backgroundMode==="solid"?backgroundColour:undefined}} onPointerDown={(event)=>{if(!(event.target as HTMLElement).closest(".upper-canvas")){const active=currentCanvas();active?.discardActiveObject();active?.getObjects().filter(object=>String(object.get("name")||"").startsWith("alignment-guide-")).forEach(object=>object.set("visible",false));active?.requestRenderAll();setOpacity(100);setActiveScale(100);setActiveRotation(0);}}}>
           {(garment === "hoodie" || garment === "crewneck") ? <GarmentMasterPreview colour={colour} garment={garment} side={side} zoom={garmentZoom} fitScale={fitScale} onDimensions={setGarmentSize} fallback={<GarmentShape garment={garment} colour={colour} side={side} style={{ width: `${Math.round(garmentSize.width * fitScale)}px`, height: `${Math.round(garmentSize.height * fitScale)}px`, transform: `translate(-50%, -50%) scale(${garmentZoom / 100})` }}/>} /> : <GarmentShape garment={garment} colour={colour} side={side} style={{ width: `${Math.round(garmentSize.width * fitScale)}px`, height: `${Math.round(garmentSize.height * fitScale)}px`, transform: `translate(-50%, -50%) scale(${garmentZoom / 100})` }}/>}
           <div className="garment-artwork-overlay" style={{ transform: `scale(${artworkScale})`, transformOrigin: "center center" }}>
